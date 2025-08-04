@@ -1,0 +1,127 @@
+/* CSS variables */
+:root {
+  --color-primary: rgb(0, 0, 0);
+  --color-secondary: rgb(0, 255, 208);
+  --color-secondary-faded: rgba(0, 255, 208, 0.8);
+  --color-bg: var(--color-primary);
+  --color-text: var(--color-secondary);
+  --color-menu-bg: rgb(40, 40, 40);
+  --color-link-default: rgb(0, 255, 208);
+  --color-link-active-bg: var(--color-primary);
+}
+
+body,
+html,
+#root {
+  height: 100%;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Layout wrapper (defined in sidebar) */
+.app-layout {
+  display: flex;
+  height: 100vh;
+}
+
+/* Main content styles (defined in sidebar) */
+.main-content {
+  flex-grow: 1;
+  padding: 2rem 3rem;
+  overflow-y: auto;
+}
+
+/* Sidebar styles */
+.sidebar {
+  position: relative;
+  width: 200px;
+  background-color: var(--color-menu-bg);
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  transition: width 0.3s ease, padding 0.3s ease;
+}
+
+.sidebar a {
+  color: var(--color-link-default);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 0.5rem 0.8rem;
+  border-radius: 6px;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+  background-color: var(--color-link-active-bg);
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin-top: 25px;
+}
+
+.collapse-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--color-link-default);
+  transition: color 0.25s ease;
+}
+.collapse-btn:hover {
+  color: var(--color-primary);
+}
+
+.app-layout.collapsed .sidebar {
+  width: 40px;
+  padding: 1.5rem 0.5rem;
+}
+
+.app-layout.collapsed .sidebar nav {
+  display: none;
+}
+
+/* Buttons */
+button {
+  padding: 0.5rem 1rem;
+  background-color: var(--color-link-default);
+  color: var(--color-primary);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.25s ease, transform 0.15s ease;
+}
+
+button:hover {
+  background-color: var(--color-secondary-faded);
+  transform: scale(1.03);
+}
+
+.button-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    background-color: var(--color-menu-bg);
+    padding: 1.5rem 1rem;
+    border-radius: 1rem;
+}
+
+
+/* Noise elements */
+.noise-map {
+    width: 70%;
+}
+
+.noise-container {
+    display: flex;
+}
