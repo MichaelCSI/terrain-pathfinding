@@ -1,15 +1,21 @@
 import { createNoise2D } from "simplex-noise";
+import seedrandom from "seedrandom";
 
 export interface MapTile {
   x: number;
   y: number;
   tileCoord: TileCoord;
+  tileType: TileType;
 }
+
+type TileType = "Hills" | "Fences" | "Grass" | "Water";
 
 interface TileCoord {
   index: number; // Unique index (row-major)
   x: number; // x in pixels
   y: number; // y in pixels
+  tileX: number; // column (tile grid)
+  tileY: number; // row (tile grid)
 }
 
 interface TilemapOptions {
@@ -42,6 +48,8 @@ export async function getTileCoordsFromTilemap({
             index: index++,
             x: x * (tileSize + padding),
             y: y * (tileSize + padding),
+            tileX: x,
+            tileY: y,
           });
         }
       }
@@ -51,14 +59,19 @@ export async function getTileCoordsFromTilemap({
 
     image.onerror = (err) => reject(`Could not load image: ${filePath}`);
   });
-}
+} 
 
 /**
  * Generate a perlin map
  * @returns
  */
-export function generatePerlinMap (tileCoords: TileCoord[], width: number, height: number) {
+export function generatePerlinMap(
+  tileCoords: TileCoord[],
+  width: number,
+  height: number
+) {
   if (tileCoords.length === 0) return [];
+
   const noise = createNoise2D();
 
   const newMap: MapTile[][] = [];
@@ -66,15 +79,44 @@ export function generatePerlinMap (tileCoords: TileCoord[], width: number, heigh
   for (let y = 0; y < height; y++) {
     const row: MapTile[] = [];
     for (let x = 0; x < width; x++) {
-      const value = noise(x / 10, y / 10);
-
       // Pick a random tileCoord from the list
       const tileCoord = tileCoords[Math.floor(Math.random() * tileCoords.length)];
 
-      row.push({ x, y, tileCoord });
+      // Assign a type to the tile based on the perlin value
+      const value = noise(x / 10, y / 10);
+      const tileType = assignTileType(value);
+
+      row.push({ x, y, tileCoord, tileType });
     }
     newMap.push(row);
   }
 
   return newMap;
-};
+}
+
+function assignTileType(noiseValue: number): TileType {
+  if (noiseValue < -0.5) {
+    return "Water";
+  } else if (noiseValue < 0.0) {
+    return "Grass";
+  } else if (noiseValue < 0.5) {
+    return "Hills";
+  } else {
+    return "Fences";
+  }
+}
+
+export function assignTile(tileType: TileType): string {
+  switch (tileType) {
+    case "Water":
+      return "#0000a5";
+    case "Grass":
+      return "#00a500";
+    case "Hills":
+      return "#808080";
+    case "Fences":
+      return "#964b00";
+    default:
+      throw new Error(`Unknown tile type: ${tileType}`);
+  }
+}

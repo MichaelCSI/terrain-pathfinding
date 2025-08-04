@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
-import { generatePerlinMap, getTileCoordsFromTilemap, MapTile } from "./util";
+import { assignTile, generatePerlinMap, getTileCoordsFromTilemap, MapTile } from "./util";
 
-const WIDTH = 8;
-const HEIGHT = 8;
-const TILE_SIZE = 64;
+const WIDTH = 32;
+const HEIGHT = 32;
+const TILE_SIZE = 16;
 
 
 export default function Generation() {
     const [tiles, setTiles] = useState<any[]>([]);
     const [map, setMap] = useState<MapTile[][]>([]);
+    const [perlinOverlay, setPerlinOverlay] = useState<boolean>(false);
 
 
     useEffect(() => {
@@ -26,28 +27,64 @@ export default function Generation() {
     const renderMap = () => {
         return (
             <div
-                className="noise-map"
                 style={{
-                    display: "grid",
-                    gridTemplateColumns: `repeat(${WIDTH}, ${TILE_SIZE}px)`,
+                    position: 'relative',
+                    width: WIDTH * TILE_SIZE,
+                    height: HEIGHT * TILE_SIZE,
                 }}
             >
-                {map.flat().map((tile) => (
+                {/* Tile Layer */}
+                <div
+                    style={{
+                        position: "absolute",
+                        display: "grid",
+                        gridTemplateColumns: `repeat(${WIDTH}, ${TILE_SIZE}px)`,
+                        zIndex: 0,
+                    }}
+                >
+                    {map.flat().map((tile) => (
+                        <div
+                            key={`tile-${tile.x}-${tile.y}`}
+                            style={{
+                                width: TILE_SIZE,
+                                height: TILE_SIZE,
+                                backgroundImage: `url(/tiles/${tile.tileType}.png)`,
+                                // Set background to a specific tile (position) of the png
+                                backgroundPosition: `-${tile.tileCoord.tileX * TILE_SIZE}px -${tile.tileCoord.tileY * TILE_SIZE}px`,
+                                imageRendering: "pixelated",
+                            }}
+                        />
+                    ))}
+                </div>
+
+                {/* Perlin overlay layer */}
+                {perlinOverlay &&
                     <div
-                        key={`${tile.x}-${tile.y}`}
                         style={{
-                            width: TILE_SIZE,
-                            height: TILE_SIZE,
-                            backgroundImage: `url(/tiles/Fences.png)`,
-                            backgroundSize: `64px 64px`,
-                            backgroundPosition: `-${tile.tileCoord.x}px -${tile.tileCoord.y}px`,
-                            imageRendering: "pixelated",
+                            position: "absolute",
+                            display: "grid",
+                            gridTemplateColumns: `repeat(${WIDTH}, ${TILE_SIZE}px)`,
+                            zIndex: 1,
                         }}
-                    />
-                ))}
+                    >
+                        {map.flat().map((tile) => (
+                            <div
+                                key={`overlay-${tile.x}-${tile.y}`}
+                                style={{
+                                    width: TILE_SIZE,
+                                    height: TILE_SIZE,
+                                    backgroundColor: assignTile(tile.tileType),
+                                    border: "1px solid #111",
+                                    boxSizing: "border-box"
+                                }}
+                            />
+                        ))}
+                    </div>
+                }
             </div>
         );
     };
+
 
     return (
         <div>
@@ -55,8 +92,14 @@ export default function Generation() {
             <div className="noise-container">
                 {renderMap()}
                 <div className="button-list">
-                    <button onClick={() => {generatePerlinMap(tiles, HEIGHT, WIDTH)}}>
+                    <button onClick={() => {
+                        const perlinMap = generatePerlinMap(tiles, HEIGHT, WIDTH);
+                        setMap(perlinMap);
+                    }}>
                         Apply <b>Perlin</b> Noise
+                    </button>
+                    <button onClick={() => {setPerlinOverlay(!perlinOverlay)}}>
+                        Toggle <b>Perlin</b> Overlay
                     </button>
                 </div>
             </div>
