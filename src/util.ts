@@ -2,121 +2,137 @@ import { createNoise2D } from "simplex-noise";
 import seedrandom from "seedrandom";
 
 export interface MapTile {
-  x: number;
-  y: number;
-  tileCoord: TileCoord;
-  tileType: TileType;
+    x: number;
+    y: number;
+    tileCoord: TileCoord;
+    tileType: TileType;
 }
 
-type TileType = "Hills" | "Fences" | "Grass" | "Water";
+type TileType = "Hills" | "Trees" | "Grass" | "Water";
 
 interface TileCoord {
-  index: number; // Unique index (row-major)
-  x: number; // x in pixels
-  y: number; // y in pixels
-  tileX: number; // column (tile grid)
-  tileY: number; // row (tile grid)
+    index: number; // Unique index (row-major)
+    x: number; // x in pixels
+    y: number; // y in pixels
+    tileX: number; // column (tile grid)
+    tileY: number; // row (tile grid)
 }
 
 interface TilemapOptions {
-  filePath: string;
-  tileSize: number;
-  padding?: number;
+    filePath: string;
+    tileSize: number;
+    padding?: number;
 }
 
 /**
  * Generates tile coordinates from a PNG tileset.
  */
 export async function getTileCoordsFromTilemap({
-  filePath,
-  tileSize,
-  padding = 0,
+    filePath,
+    tileSize,
+    padding = 0,
 }: TilemapOptions): Promise<TileCoord[]> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.src = filePath;
-    image.onload = () => {
-      const tiles: TileCoord[] = [];
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.src = filePath;
+        image.onload = () => {
+            const tiles: TileCoord[] = [];
 
-      const cols = Math.floor(image.width / (tileSize + padding));
-      const rows = Math.floor(image.height / (tileSize + padding));
+            const cols = Math.floor(image.width / (tileSize + padding));
+            const rows = Math.floor(image.height / (tileSize + padding));
 
-      let index = 0;
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          tiles.push({
-            index: index++,
-            x: x * (tileSize + padding),
-            y: y * (tileSize + padding),
-            tileX: x,
-            tileY: y,
-          });
-        }
-      }
+            let index = 0;
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    tiles.push({
+                        index: index++,
+                        x: x * (tileSize + padding),
+                        y: y * (tileSize + padding),
+                        tileX: x,
+                        tileY: y,
+                    });
+                }
+            }
 
-      resolve(tiles);
-    };
+            resolve(tiles);
+        };
 
-    image.onerror = (err) => reject(`Could not load image: ${filePath}`);
-  });
-} 
+        image.onerror = (err) => reject(`Could not load image: ${filePath}`);
+    });
+}
 
 /**
  * Generate a perlin map
  * @returns
  */
 export function generatePerlinMap(
-  tileCoords: TileCoord[],
-  width: number,
-  height: number
+    tileCoords: TileCoord[],
+    width: number,
+    height: number
 ) {
-  if (tileCoords.length === 0) return [];
+    if (tileCoords.length === 0) return [];
 
-  const noise = createNoise2D();
+    const noise = createNoise2D();
 
-  const newMap: MapTile[][] = [];
+    const newMap: MapTile[][] = [];
 
-  for (let y = 0; y < height; y++) {
-    const row: MapTile[] = [];
-    for (let x = 0; x < width; x++) {
-      // Pick a random tileCoord from the list
-      const tileCoord = tileCoords[Math.floor(Math.random() * tileCoords.length)];
+    for (let y = 0; y < height; y++) {
+        const row: MapTile[] = [];
+        for (let x = 0; x < width; x++) {
 
-      // Assign a type to the tile based on the perlin value
-      const value = noise(x / 10, y / 10);
-      const tileType = assignTileType(value);
+            // Assign a type to the tile based on the perlin value
+            const value = noise(x / 10, y / 10);
+            const tileType = assignTileType(value);
 
-      row.push({ x, y, tileCoord, tileType });
+            // Pick a tile based on the tile type
+            const tileCoord = tileCoords[assignTileIndex(tileType)];
+
+            row.push({ x, y, tileCoord, tileType });
+        }
+        newMap.push(row);
     }
-    newMap.push(row);
-  }
 
-  return newMap;
+    return newMap;
 }
 
 function assignTileType(noiseValue: number): TileType {
-  if (noiseValue < -0.5) {
-    return "Water";
-  } else if (noiseValue < 0.0) {
-    return "Grass";
-  } else if (noiseValue < 0.5) {
-    return "Hills";
-  } else {
-    return "Fences";
-  }
+    if (noiseValue < -0.5) {
+        return "Water";
+    } else if (noiseValue < 0.0) {
+        return "Grass";
+    } else if (noiseValue < 0.5) {
+        return "Hills";
+    } else {
+        return "Trees";
+    }
 }
 
-export function assignTile(tileType: TileType): string {
-  switch (tileType) {
-    case "Water":
-      return "#0000a5";
-    case "Grass":
-      return "#00a500";
-    case "Hills":
-      return "#808080";
-    case "Fences":
-      return "#964b00";
-    default:
-      throw new Error(`Unknown tile type: ${tileType}`);
-  }
+function assignTileIndex(tileType: TileType): number {
+    switch (tileType) {
+        case "Water":
+            return 0;
+        case "Grass":
+            return 5;
+        case "Hills":
+            return 1;
+        case "Trees":
+            return 15;
+        default:
+            throw new Error(`Unknown tile type: ${tileType}`);
+    }
+}
+
+export function assignTilePerlinOverlay(tileType: TileType): string {
+    switch (tileType) {
+        case "Water":
+            return "#0000a5";
+        case "Grass":
+            return "#00a500";
+        case "Hills":
+            return "#808080";
+        case "Trees":
+            return "#964b00";
+        default:
+            throw new Error(`Unknown tile type: ${tileType}`);
+    }
 }

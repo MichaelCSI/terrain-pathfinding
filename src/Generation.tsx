@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { assignTile, generatePerlinMap, getTileCoordsFromTilemap, MapTile } from "./util";
+import { assignTilePerlinOverlay, generatePerlinMap, getTileCoordsFromTilemap, MapTile } from "./util";
 
-const WIDTH = 32;
-const HEIGHT = 32;
-const TILE_SIZE = 16;
+const WIDTH = 64;
+const HEIGHT = 64;
+const TILE_SIZE = 8;
 
 
 export default function Generation() {
@@ -31,6 +31,7 @@ export default function Generation() {
                     position: 'relative',
                     width: WIDTH * TILE_SIZE,
                     height: HEIGHT * TILE_SIZE,
+                    background: '#8bc84a'
                 }}
             >
                 {/* Tile Layer */}
@@ -73,7 +74,7 @@ export default function Generation() {
                                 style={{
                                     width: TILE_SIZE,
                                     height: TILE_SIZE,
-                                    backgroundColor: assignTile(tile.tileType),
+                                    backgroundColor: assignTilePerlinOverlay(tile.tileType),
                                     border: "1px solid #111",
                                     boxSizing: "border-box"
                                 }}
