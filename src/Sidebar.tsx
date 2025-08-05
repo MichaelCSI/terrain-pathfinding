@@ -22,11 +22,8 @@ export default function HomeLayout() {
                     <Link to="/" className={location.pathname === "/" ? "active" : ""}>
                         Home
                     </Link>
-                    <Link to="/about" className={location.pathname === "/about" ? "active" : ""}>
-                        About
-                    </Link>
                     <Link to="/generation" className={location.pathname === "/generation" ? "active" : ""}>
-                        Generation
+                        2D Tile Map
                     </Link>
                 </nav>
             </aside>
