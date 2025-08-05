@@ -3,8 +3,8 @@ import { createNoise2D } from "simplex-noise";
 export interface MapTile {
     x: number;
     y: number;
-    tileCoord: TileCoord;
-    tileType: TileType;
+    tileCoord?: TileCoord;
+    tileType?: TileType;
     walkable?: boolean; // Walkable according to pathfinding
 }
 
@@ -28,15 +28,16 @@ interface TilemapOptions {
 type Node = {
     x: number;
     y: number;
-    g: number;
-    h: number;
-    f: number;
+    g: number; // Cost from starting node to current node
+    h: number; // Estimated cost from current node to end node (e.g. manhatten)
+    f: number; // Total estimated cost of path through current node f = g + h
     parent?: Node;
 };
 
 
 /**
- * Manhattan distance between two points for pathfinding in a grid
+ * Manhattan distance between two points for pathfinding in a grid.
+ * Used as the heuristic for the A* pathfinding.
  * 
  * @param x1 - X coordinate of the current node
  * @param x2 - X coordinate of the target node
@@ -44,7 +45,7 @@ type Node = {
  * @param y2 - Y coordinate of the target node
  * @returns The Manhattan distance
  */
-function heuristic(x1: number, x2: number, y1: number, y2: number) {
+function manhatten(x1: number, x2: number, y1: number, y2: number) {
     return Math.abs(x1 - x2) + Math.abs(y1 - y2);
 }
 
@@ -56,7 +57,7 @@ function heuristic(x1: number, x2: number, y1: number, y2: number) {
  * @param end - The ending tile coordinates { x, y }
  * @returns An array of coordinates representing the path or null if no path is found
  */
-export function findPath(
+export function findPathAStar(
     grid: MapTile[][],
     start: { x: number; y: number },
     end: { x: number; y: number }
@@ -68,7 +69,7 @@ export function findPath(
         x: start.x,
         y: start.y,
         g: 0,
-        h: heuristic(start.x, end.x, start.y, end.y),
+        h: manhatten(start.x, end.x, start.y, end.y),
         f: 0,
     };
     startNode.f = startNode.g + startNode.h;
@@ -76,11 +77,12 @@ export function findPath(
     openSet.push(startNode);
 
     while (openSet.length > 0) {
-        // Find node with lowest f
+        // Select node with lowest total cost (f = g + h) from unexplored nodes
         openSet.sort((a, b) => a.f - b.f);
         const current = openSet.shift()!;
+
+        // We found the end: trace parent links to reconstruct path, return path
         if (current.x === end.x && current.y === end.y) {
-            // Reconstruct path
             const path = [];
             let node: Node | undefined = current;
             while (node) {
@@ -90,16 +92,18 @@ export function findPath(
             return path;
         }
 
+        // Node as been explored, add it to the closed set
         closedSet.add(`${current.x},${current.y}`);
 
+        // Explore 4-directional grid neighbors (up, down, left, right)
         const neighbors = [
             { x: current.x + 1, y: current.y },
             { x: current.x - 1, y: current.y },
             { x: current.x, y: current.y + 1 },
             { x: current.x, y: current.y - 1 },
         ];
-
         for (const { x, y } of neighbors) {
+            // Skip out-of-bounds, visited, or non-walkable tiles
             if (
                 x < 0 || x >= grid[0].length ||
                 y < 0 || y >= grid.length ||
@@ -110,9 +114,10 @@ export function findPath(
             }
 
             const g = current.g + 1;
-            const h = heuristic(x, end.x, y, end.y)
+            const h = manhatten(x, end.x, y, end.y)
             const f = g + h;
 
+            // If a node is already in the open set, update it if this path is better
             const existing = openSet.find((n) => n.x === x && n.y === y);
             if (existing) {
                 if (g < existing.g) {
@@ -125,7 +130,6 @@ export function findPath(
             }
         }
     }
-
     return null;
 }
 

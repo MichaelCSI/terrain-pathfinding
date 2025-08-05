@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { assignTilePerlinOverlay, findPath, generatePerlinMap, getTileCoordsFromTilemap, MapTile } from "./util";
+import { assignTilePerlinOverlay, findPathAStar, generatePerlinMap, getTileCoordsFromTilemap, MapTile } from "./util";
 
 const WIDTH = 64;
 const HEIGHT = 64;
@@ -40,7 +40,7 @@ export default function Map() {
         // Second point and path between first and second
         else if (!endPoint) {
             setEndPoint({ x, y });
-            const result = findPath(map, startPoint, { x, y });
+            const result = findPathAStar(map, startPoint, { x, y });
             if (result) {
                 console.log(result)
                 setPath(result);
@@ -66,6 +66,7 @@ export default function Map() {
             filePath: "/tiles/Fences.png",
             tileSize: 16,
         }).then((tiles) => {
+            setTiles(tiles);
             const perlinMap = generatePerlinMap(tiles, HEIGHT, WIDTH);
             setMap(perlinMap);
         });
@@ -128,7 +129,7 @@ export default function Map() {
                                     style={{
                                         width: TILE_SIZE,
                                         height: TILE_SIZE,
-                                        backgroundColor: isPathTile ? "rgba(255, 0, 0, 0.4)" : "transparent",
+                                        backgroundColor: isPathTile ? "rgba(255, 0, 0, 0.6)" : "transparent",
                                         boxSizing: "border-box",
                                     }}
                                 />
@@ -171,22 +172,25 @@ export default function Map() {
 
     return (
         <div>
-            <h2 className="text-xl font-bold mb-4">2D Tiled Map Generation Demo</h2>
+            <h2 className="text-xl font-bold mb-4">2D Tiled Map Demo</h2>
             <div className="noise-container">
                 {renderMap()}
                 <div className="button-list">
                     <button onClick={() => {
                         const perlinMap = generatePerlinMap(tiles, HEIGHT, WIDTH);
                         setMap(perlinMap);
+                        setStartPoint(null);
+                        setEndPoint(null);
+                        setPath(null);
                     }}>
-                        Apply <b>Perlin</b> Noise
+                        Reset <b>Perlin</b> Noise
                     </button>
 
                     <button onClick={() => { setPerlinOverlay(!perlinOverlay) }}>
                         Toggle <b>Perlin</b> Overlay
                     </button>
 
-                    <p style={{ marginBottom: 0 }}>Pathfinding</p>
+                    <b style={{ marginBottom: 0 }}>Pathfinding</b>
                     <ul style={{ marginTop: 0 }}>
                         <li>Click on two tiles (third click resets)</li>
                         <li>Water is not walkable</li>

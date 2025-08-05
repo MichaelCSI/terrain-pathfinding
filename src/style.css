@@ -64,7 +64,7 @@ html,
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
-  margin-top: 25px;
+  margin-top: 40px;
 }
 
 .collapse-btn {
