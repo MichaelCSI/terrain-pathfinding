@@ -1,22 +1,22 @@
 import { useEffect, useState } from "react";
-import { assignTilePerlinOverlay, findPathAStar, generatePerlinMap, getTileCoordsFromTilemap, MapTile } from "./util";
+import { assignTilePerlinOverlay, findPathAStar, generatePerlinMap, MapTile } from "./util";
 
 const WIDTH = 64;
 const HEIGHT = 64;
 const TILE_SIZE = 8;
 
 
-export default function Map() {
+export default function Map2D() {
     // Tilemap and perlin overlay
     const [tiles, setTiles] = useState<any[]>([]);
     const [map, setMap] = useState<MapTile[][]>([]);
-    const [perlinOverlay, setPerlinOverlay] = useState<boolean>(false);
 
     // Pathfinding
     const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
     const [endPoint, setEndPoint] = useState<{ x: number; y: number } | null>(null);
     const [path, setPath] = useState<{ x: number; y: number }[] | null>([]);
     const [visiblePath, setVisiblePath] = useState<{ x: number; y: number }[]>([]);
+    const [pathFound, setPathFound] = useState<boolean>(true);
 
 
     /**
@@ -25,24 +25,34 @@ export default function Map() {
      * @param y Tile y
      */
     const handleClickTile = (x: number, y: number) => {
+        const tile = map[y][x];
+        if (!tile.tileType) return;
+
+        // Determine if tile is walkable
+        const isWalkable = tile.tileType !== "Water" && tile.tileType !== "Stone";
+
         // Reset if we have already done a path
-        if (startPoint && endPoint && path) {
+        if (startPoint && endPoint) {
             setStartPoint(null);
             setEndPoint(null);
             setPath(null);
+            setPathFound(false);
             return;
         }
 
         // First point
         if (!startPoint) {
+            if (!isWalkable) return;
+
             setStartPoint({ x, y });
         }
         // Second point and path between first and second
         else if (!endPoint) {
+            if (!isWalkable) return;
+
             setEndPoint({ x, y });
             const result = findPathAStar(map, startPoint, { x, y });
             if (result) {
-                console.log(result)
                 setPath(result);
 
                 // Animate path
@@ -52,8 +62,9 @@ export default function Map() {
                         setVisiblePath((prev) => [...prev, tile]);
                     }, index * 50);
                 });
+                setPathFound(true);
             } else {
-                console.warn("No path found from", startPoint, "to", { x, y });
+                setPathFound(false);
             }
         }
     };
@@ -61,15 +72,9 @@ export default function Map() {
 
 
     useEffect(() => {
-        // Generate tile coodrinates from sample tileset
-        getTileCoordsFromTilemap({
-            filePath: "/tiles/Fences.png",
-            tileSize: 16,
-        }).then((tiles) => {
-            setTiles(tiles);
-            const perlinMap = generatePerlinMap(tiles, HEIGHT, WIDTH);
-            setMap(perlinMap);
-        });
+        setTiles(tiles);
+        const perlinMap = generatePerlinMap(HEIGHT, WIDTH);
+        setMap(perlinMap);
     }, []);
 
 
@@ -77,38 +82,11 @@ export default function Map() {
         return (
             <div
                 style={{
-                    position: 'relative',
                     width: WIDTH * TILE_SIZE,
                     height: HEIGHT * TILE_SIZE,
-                    background: '#8bc84a'
+                    position: 'relative'
                 }}
             >
-                {/* Tile Layer */}
-                <div
-                    style={{
-                        position: "absolute",
-                        display: "grid",
-                        gridTemplateColumns: `repeat(${WIDTH}, ${TILE_SIZE}px)`,
-                        zIndex: 0,
-                    }}
-                >
-                    {map.flat().map((tile) => (
-                        <div
-                            key={`tile-${tile.x}-${tile.y}`}
-                            onClick={() => handleClickTile(tile.x, tile.y)}
-                            style={{
-                                width: TILE_SIZE,
-                                height: TILE_SIZE,
-                                backgroundImage: `url(/tiles/${tile.tileType}.png)`,
-                                // Set background to a specific tile (position) of the png
-                                backgroundPosition: `-${tile.tileCoord.tileX * TILE_SIZE}px -${tile.tileCoord.tileY * TILE_SIZE}px`,
-                                imageRendering: "pixelated",
-                            }}
-                        />
-                    ))}
-                </div>
-
-
                 {/* Path overlay layer */}
                 {path && (
                     <div
@@ -121,16 +99,20 @@ export default function Map() {
                         }}
                     >
                         {map.flat().map((tile) => {
+
                             // Visible path animation
-                            const isPathTile = visiblePath.some(p => p.x === tile.x && p.y === tile.y);
+                            const isPathTile = visiblePath.some(
+                                p => p.x === tile.gridCoordinates.x &&
+                                    p.y === tile.gridCoordinates.y
+                            );
+
                             return (
                                 <div
-                                    key={`path-overlay-${tile.x}-${tile.y}`}
+                                    key={`path-overlay-${tile.gridCoordinates.x}-${tile.gridCoordinates.y}`}
                                     style={{
                                         width: TILE_SIZE,
                                         height: TILE_SIZE,
                                         backgroundColor: isPathTile ? "rgba(255, 0, 0, 0.6)" : "transparent",
-                                        boxSizing: "border-box",
                                     }}
                                 />
                             );
@@ -141,30 +123,33 @@ export default function Map() {
 
 
                 {/* Perlin overlay layer */}
-                {perlinOverlay &&
-                    <div
-                        style={{
-                            position: "absolute",
-                            display: "grid",
-                            gridTemplateColumns: `repeat(${WIDTH}, ${TILE_SIZE}px)`,
-                            zIndex: 1,
-                            pointerEvents: "none"
-                        }}
-                    >
-                        {map.flat().map((tile) => (
+                <div
+                    style={{
+                        position: "absolute",
+                        display: "grid",
+                        gridTemplateColumns: `repeat(${WIDTH}, ${TILE_SIZE}px)`,
+                        zIndex: 1,
+                    }}
+                >
+                    {map.flat().map((tile) => {
+                        if (!tile.tileType) return;
+
+                        return (
                             <div
-                                key={`overlay-${tile.x}-${tile.y}`}
+                                onClick={() => handleClickTile(tile.gridCoordinates.x, tile.gridCoordinates.y)}
+                                key={`overlay-${tile.gridCoordinates.x}-${tile.gridCoordinates.y}`}
                                 style={{
                                     width: TILE_SIZE,
                                     height: TILE_SIZE,
                                     backgroundColor: assignTilePerlinOverlay(tile.tileType),
-                                    border: "1px solid #111",
+                                    border: '0.1px solid rgba(17, 17, 17, 0.1)',
                                     boxSizing: "border-box"
                                 }}
                             />
-                        ))}
-                    </div>
-                }
+                        )
+                    }
+                    )}
+                </div>
             </div>
         );
     };
@@ -172,29 +157,35 @@ export default function Map() {
 
     return (
         <div>
-            <h2 className="text-xl font-bold mb-4">2D Tiled Map Demo</h2>
+            <h1>2D Tiled Map Demo</h1>
             <div className="noise-container">
                 {renderMap()}
                 <div className="button-list">
                     <button onClick={() => {
-                        const perlinMap = generatePerlinMap(tiles, HEIGHT, WIDTH);
+                        const perlinMap = generatePerlinMap(HEIGHT, WIDTH);
                         setMap(perlinMap);
                         setStartPoint(null);
                         setEndPoint(null);
                         setPath(null);
                     }}>
-                        Reset <b>Perlin</b> Noise
+                        Reset Perlin Noise Map
                     </button>
 
-                    <button onClick={() => { setPerlinOverlay(!perlinOverlay) }}>
-                        Toggle <b>Perlin</b> Overlay
-                    </button>
+                    <div style={{marginTop: '20px'}}>
+                        <p>Click on two grass (green) tiles</p>
+                        <p>A* will attempt to find a walkable path</p>
+                        <p>Water (blue) and Stone (grey) are not walkable</p>
+                    </div>
 
-                    <b style={{ marginBottom: 0 }}>Pathfinding</b>
-                    <ul style={{ marginTop: 0 }}>
-                        <li>Click on two tiles (third click resets)</li>
-                        <li>Water is not walkable</li>
-                    </ul>
+                    <div>
+                        {startPoint && <p>{`Start point is: (${startPoint.x}, ${startPoint.y})`}</p>}
+                        {endPoint && <p>{`End point is: (${endPoint.x}, ${endPoint.y})`}</p>}
+                        {endPoint ? pathFound ?
+                            <p>Path found!</p> :
+                            <p style={{ marginBottom: 0 }}>No path found!</p> :
+                            null
+                        }
+                    </div>
                 </div>
             </div>
         </div>

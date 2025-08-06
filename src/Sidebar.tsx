@@ -23,7 +23,7 @@ export default function HomeLayout() {
                         Home
                     </Link>
                     <Link to="/generation" className={location.pathname === "/generation" ? "active" : ""}>
-                        2D Tile Map
+                        2D Tile Map and A* Pathfinding
                     </Link>
                 </nav>
             </aside>

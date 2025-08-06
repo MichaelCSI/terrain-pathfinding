@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { findPathAStar, MapTile } from './util';
+import { findPathAStar, MapTile, Point2D } from './util';
 
 const GRID_SIZE = 40;
 const OBSTACLE_PROBABILITY = 0.2;
-const INITIAL_SNAKE: Point[] = [
+const INITIAL_SNAKE: Point2D[] = [
     { x: 10, y: 10 },
     { x: 9, y: 10 },
     { x: 8, y: 10 },
@@ -16,10 +16,6 @@ const INITIAL_SNAKE: Point[] = [
     { x: 1, y: 10 },
     { x: 0, y: 10 },
 ];
-interface Point {
-    x: number,
-    y: number
-}
 
 
 /**
@@ -27,12 +23,16 @@ interface Point {
  * @param snake The snake represented by a 2D contiguous point array
  * @returns A 2D grid of Map tiles
  */
-function createWalkableGrid(snake: Point[]) {
+function createWalkableGrid(snake: Point2D[]): MapTile[][] {
     return Array(GRID_SIZE).fill(null).map((_, y) =>
         Array(GRID_SIZE).fill(null).map((_, x) => {
             const isSnake = snake.some(p => p.x === x && p.y === y);
             const isObstacle = !isSnake && Math.random() < OBSTACLE_PROBABILITY;
-            return { walkable: !isSnake && !isObstacle, x, y };
+            
+            return {
+                gridCoordinates: {x, y},
+                walkable: !isSnake && !isObstacle 
+            };
         })
     );
 }
@@ -43,9 +43,9 @@ function createWalkableGrid(snake: Point[]) {
  * @param snake The snake array
  * @returns The target cell in the grid
  */
-function computeTargetPath(snake: Point[], grid: MapTile[][]) {
-    let target: Point;
-    let path: Point[] | null;
+function computeTargetPath(snake: Point2D[], grid: MapTile[][]) {
+    let target: Point2D;
+    let path: Point2D[] | null;
     let attempts = 0;
 
     // Create a target that is not on the snake, on an obstacle, or unpathable
@@ -76,13 +76,13 @@ function computeTargetPath(snake: Point[], grid: MapTile[][]) {
  */
 export default function Home() {
     // Initil snake position, grid, target, and path
-    const [snake, setSnake] = useState<Point[]>(INITIAL_SNAKE);
+    const [snake, setSnake] = useState<Point2D[]>(INITIAL_SNAKE);
     const [grid, _] = useState<MapTile[][]>(createWalkableGrid(snake))
-    const [target, setTarget] = useState<Point>(computeTargetPath(snake, grid).target);
+    const [target, setTarget] = useState<Point2D>(computeTargetPath(snake, grid).target);
 
     // Calculate initial path ... slice(1) to not count snake head
     const initialPath = findPathAStar(grid, snake[0], target) ?? [];
-    const [path, setPath] = useState<Point[]>(initialPath.slice(1));
+    const [path, setPath] = useState<Point2D[]>(initialPath.slice(1));
 
     // Move the snake at regular intervals
     useEffect(() => {
@@ -118,7 +118,7 @@ export default function Home() {
     return (
         <div>
             <h1>Exploring Terrain Generation and Pathfinding Algorithms</h1>
-            <div style={{ display: 'flex', height: '75vh', color: 'white' }}>
+            <div style={{ display: 'flex', height: '75vh' }}>
                 <div style={{ flex: 1 }}>
                     <h4>
                         This project explores different aspects of terrain creation and interaction

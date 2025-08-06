@@ -1,28 +1,18 @@
 import { createNoise2D } from "simplex-noise";
 
 export interface MapTile {
-    x: number;
-    y: number;
-    tileCoord?: TileCoord;
+    gridCoordinates: Point2D;
     tileType?: TileType;
     walkable?: boolean; // Walkable according to pathfinding
 }
 
-type TileType = "Hills" | "Trees" | "Grass" | "Water";
-
-interface TileCoord {
-    index: number; // Unique index (row-major)
-    x: number; // x in pixels
-    y: number; // y in pixels
-    tileX: number; // column (tile grid)
-    tileY: number; // row (tile grid)
+export interface Point2D {
+    x: number,
+    y: number
 }
 
-interface TilemapOptions {
-    filePath: string;
-    tileSize: number;
-    padding?: number;
-}
+type TileType = "Stone" | "Grass" | "Water";
+
 
 // Node in pathfinding
 type Node = {
@@ -135,54 +125,13 @@ export function findPathAStar(
 
 
 /**
- * Generates tile coordinates from a PNG tileset.
- */
-export async function getTileCoordsFromTilemap({
-    filePath,
-    tileSize,
-    padding = 0,
-}: TilemapOptions): Promise<TileCoord[]> {
-    return new Promise((resolve, reject) => {
-        const image = new Image();
-        image.src = filePath;
-        image.onload = () => {
-            const tiles: TileCoord[] = [];
-
-            const cols = Math.floor(image.width / (tileSize + padding));
-            const rows = Math.floor(image.height / (tileSize + padding));
-
-            let index = 0;
-            for (let y = 0; y < rows; y++) {
-                for (let x = 0; x < cols; x++) {
-                    tiles.push({
-                        index: index++,
-                        x: x * (tileSize + padding),
-                        y: y * (tileSize + padding),
-                        tileX: x,
-                        tileY: y,
-                    });
-                }
-            }
-
-            resolve(tiles);
-        };
-
-        image.onerror = (err) => reject(`Could not load image: ${filePath}`);
-    });
-}
-
-
-/**
  * Generate a perlin map
  * @returns
  */
 export function generatePerlinMap(
-    tileCoords: TileCoord[],
     width: number,
     height: number
 ) {
-    if (tileCoords.length === 0) return [];
-
     const noise = createNoise2D();
 
     const newMap: MapTile[][] = [];
@@ -194,12 +143,12 @@ export function generatePerlinMap(
             // Assign a type to the tile based on the perlin value
             const value = noise(x / 10, y / 10);
             const tileType = assignTileType(value);
-            const walkable = tileType === "Water" ? false: true;
+            const walkable = tileType === "Grass";
 
             // Pick a tile based on the tile type
-            const tileCoord = tileCoords[assignTileIndex(tileType)];
+            const gridCoordinates = { x, y }
 
-            row.push({ x, y, tileCoord, tileType, walkable });
+            row.push({ gridCoordinates, tileType, walkable });
         }
         newMap.push(row);
     }
@@ -213,34 +162,12 @@ export function generatePerlinMap(
  * @returns A tile type that corresponds to a tileset
  */
 function assignTileType(noiseValue: number): TileType {
-    if (noiseValue < -0.5) {
+    if (noiseValue < 0) {
         return "Water";
-    } else if (noiseValue < 0.0) {
+    } else if (noiseValue < 0.8) {
         return "Grass";
-    } else if (noiseValue < 0.5) {
-        return "Hills";
     } else {
-        return "Trees";
-    }
-}
-
-/**
- * Assign a tile from the tilemap arbitrarily (handpicked tiles from tilemaps)
- * @param tileType The type of tilemap
- * @returns Index to a specific tile
- */
-function assignTileIndex(tileType: TileType): number {
-    switch (tileType) {
-        case "Water":
-            return 0;
-        case "Grass":
-            return 5;
-        case "Hills":
-            return 1;
-        case "Trees":
-            return 15;
-        default:
-            throw new Error(`Unknown tile type: ${tileType}`);
+        return "Stone";
     }
 }
 
@@ -250,16 +177,14 @@ function assignTileIndex(tileType: TileType): number {
  * @returns A tile color
  */
 export function assignTilePerlinOverlay(tileType: TileType): string {
-    switch (tileType) {
-        case "Water":
-            return "#0000a5";
-        case "Grass":
-            return "#00a500";
-        case "Hills":
-            return "#808080";
-        case "Trees":
-            return "#964b00";
-        default:
-            throw new Error(`Unknown tile type: ${tileType}`);
-    }
+        switch (tileType) {
+            case "Water":
+                return "#0000a5";
+            case "Grass":
+                return "#00a500";
+            case "Stone":
+                return "#9e9d9c";
+            default:
+                throw new Error(`Unknown tile type: ${tileType}`);
+        }
 }

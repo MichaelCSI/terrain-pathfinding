@@ -1,6 +1,6 @@
 import { Routes, Route, Link } from 'react-router-dom';
 import Home from './Home';
-import Generation from './Map';
+import Generation from './Map2D';
 import Sidebar from './Sidebar';
 import "./style.css";
 
