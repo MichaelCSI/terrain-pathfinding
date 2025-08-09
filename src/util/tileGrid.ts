@@ -3,7 +3,7 @@ import { createNoise2D } from "simplex-noise";
 export interface MapTile {
     gridCoordinates: Point2D;
     tileType?: TileType;
-    walkable?: boolean; // Walkable according to pathfinding
+    walkable?: boolean;
 }
 
 export interface Point2D {
@@ -27,7 +27,7 @@ type Node = {
 
 /**
  * Manhattan distance between two points for pathfinding in a grid.
- * Used as the heuristic for the A* pathfinding.
+ * Used as the heuristic for the A* pathfinding (2D grid pathing).
  * 
  * @param x1 - X coordinate of the current node
  * @param x2 - X coordinate of the target node
@@ -45,13 +45,9 @@ function manhatten(x1: number, x2: number, y1: number, y2: number) {
  * @param grid - The 2D array of MapTiles
  * @param start - The starting tile coordinates { x, y }
  * @param end - The ending tile coordinates { x, y }
- * @returns An array of coordinates representing the path or null if no path is found
+ * @returns An array of points representing the path or null if no path is found
  */
-export function findPathAStar(
-    grid: MapTile[][],
-    start: { x: number; y: number },
-    end: { x: number; y: number }
-): { x: number; y: number }[] | null {
+export function findPathAStar(grid: MapTile[][], start: Point2D, end: Point2D): Point2D[] | null {
     const openSet: Node[] = [];
     const closedSet: Set<string> = new Set();
 
@@ -126,12 +122,12 @@ export function findPathAStar(
 
 /**
  * Generate a perlin map
- * @returns
+ * @returns A MapTile grid based on the perlin map
  */
 export function generatePerlinMap(
     width: number,
     height: number
-) {
+): MapTile[][] {
     const noise = createNoise2D();
 
     const newMap: MapTile[][] = [];
@@ -177,14 +173,14 @@ function assignTileType(noiseValue: number): TileType {
  * @returns A tile color
  */
 export function assignTilePerlinOverlay(tileType: TileType): string {
-        switch (tileType) {
-            case "Water":
-                return "#0000a5";
-            case "Grass":
-                return "#00a500";
-            case "Stone":
-                return "#9e9d9c";
-            default:
-                throw new Error(`Unknown tile type: ${tileType}`);
-        }
+    switch (tileType) {
+        case "Water":
+            return "#0000a5";
+        case "Grass":
+            return "#00a500";
+        case "Stone":
+            return "#9e9d9c";
+        default:
+            throw new Error(`Unknown tile type: ${tileType}`);
+    }
 }

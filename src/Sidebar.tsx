@@ -8,27 +8,56 @@ export default function HomeLayout() {
     const [collapsed, setCollapsed] = useState(false);
 
     return (
-        <div className={`app-layout ${collapsed ? "collapsed" : ""}`}>
-            <aside className="sidebar">
+        <div className={`flex ${collapsed ? "collapsed" : ""}`}>
+            <aside
+                className={`
+                    fixed top-0 bottom-0
+                    transition-all duration-300 ease-in-out 
+                    flex flex-col gap-5 
+                    ${collapsed ? "w-20 px-2" : "w-52 px-4"} 
+                    bg-[var(--color-menu-bg)] py-6
+                `}
+            >
                 <button
-                    className="collapse-btn"
+                    className={`
+                        default absolute top-3 right-2
+                        text-[var(--color-secondary)] bg-transparent 
+                        hover:bg-transparent hover:scale-110 hover:text-[var(--color-secondary-faded)]
+                    `}
                     onClick={() => setCollapsed(!collapsed)}
                     aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
                 >
                     <FontAwesomeIcon icon={collapsed ? faChevronRight : faChevronLeft} />
                 </button>
 
-                <nav>
-                    <Link to="/" className={location.pathname === "/" ? "active" : ""}>
+                {/* Navigation links */}
+                <nav
+                    className={`flex flex-col gap-5 mt-12 ${collapsed ? "hidden" : "flex"}`}
+                >
+                    <Link
+                        to="/"
+                        className={`no-underline font-semibold px-3 py-2 rounded-md transition-colors duration-200 
+                        text-[var(--color-secondary)] hover:bg-[var(--color-primary)]
+                        ${location.pathname === "/" ? "bg-[var(--color-primary)]" : ""}`}
+                    >
                         Home
                     </Link>
-                    <Link to="/generation" className={location.pathname === "/generation" ? "active" : ""}>
+                    <Link
+                        to="/generation"
+                        className={`no-underline font-semibold px-3 py-2 rounded-md transition-colors duration-200 
+                        text-[var(--color-secondary)] hover:bg-[var(--color-primary)]
+                        ${location.pathname === "/generation" ? "bg-[var(--color-primary)]" : ""}`}
+                    >
                         2D Tile Map and A* Pathfinding
                     </Link>
                 </nav>
             </aside>
 
-            <main className="main-content">
+            <main className={`
+                flex-1 p-6 
+                ${collapsed ? "ml-20" : "ml-52"}
+                transition-all duration-300 ease-in-out 
+            `}>
                 <Outlet />
             </main>
         </div>
