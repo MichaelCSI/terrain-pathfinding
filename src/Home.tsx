@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { findPathAStar, MapTile, Point2D } from './util/tileGrid';
+import { findPathAStar, MapTile, Point2D } from './util/grid2D';
 
 const GRID_SIZE = 40;
 const OBSTACLE_PROBABILITY = 0.2;
@@ -170,7 +170,7 @@ export default function Home() {
                     </ul>
                 </div>
 
-                <div className="flex-1 flex justify-center items-center h-[75vh]">
+                <div className="flex-1 flex flex-col justify-center items-center h-[75vh]">
                     <div
                         className="grid border border-white"
                         style={{
@@ -203,6 +203,7 @@ export default function Home() {
                             );
                         })}
                     </div>
+                    <em className='mt-2'>A* pathfinding on a known grid with random obstacles</em>
                 </div>
             </div>
         </div>

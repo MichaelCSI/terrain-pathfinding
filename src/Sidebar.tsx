@@ -48,7 +48,7 @@ export default function HomeLayout() {
                         text-[var(--color-secondary)] hover:bg-[var(--color-primary)]
                         ${location.pathname === "/generation" ? "bg-[var(--color-primary)]" : ""}`}
                     >
-                        2D Tile Map and A* Pathfinding
+                        2D A* pathfinding
                     </Link>
                 </nav>
             </aside>

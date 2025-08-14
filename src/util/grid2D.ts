@@ -119,6 +119,93 @@ export function findPathAStar(grid: MapTile[][], start: Point2D, end: Point2D): 
     return null;
 }
 
+/**
+ * Generator version of findPathAStar() for gradually visualizing path finding rather than just the final path
+ * @param grid - The 2D array of MapTiles
+ * @param start - The starting tile coordinates { x, y }
+ * @param end - The ending tile coordinates { x, y }
+ * @returns An array of points representing the path or null if no path is found
+ */
+export function* findPathAStarGenerator(grid: MapTile[][], start: Point2D, end: Point2D) {
+    const openSet: Node[] = [];
+    const closedSet: Set<string> = new Set();
+
+    const startNode: Node = {
+        x: start.x,
+        y: start.y,
+        g: 0,
+        h: manhatten(start.x, end.x, start.y, end.y),
+        f: 0,
+    };
+    startNode.f = startNode.g + startNode.h;
+    openSet.push(startNode);
+
+    while (openSet.length > 0) {
+        openSet.sort((a, b) => a.f - b.f);
+        const currentNode = openSet.shift()!;
+
+        // Yield the current search state
+        yield {
+            currentNode,
+            openSet: openSet,
+            closedSet: new Set(closedSet),
+            finalPath: [],
+        };
+
+        // Reached the end, yield the final path and state
+        if (currentNode.x === end.x && currentNode.y === end.y) {
+            const path = [];
+            let node: Node | undefined = currentNode;
+            while (node) {
+                path.unshift({ x: node.x, y: node.y });
+                node = node.parent;
+            }
+            yield {
+                currentNode,
+                openSet: openSet,
+                closedSet,
+                finalPath: path,
+            };
+            return;
+        }
+
+        closedSet.add(`${currentNode.x},${currentNode.y}`);
+
+        const neighbors = [
+            { x: currentNode.x + 1, y: currentNode.y },
+            { x: currentNode.x - 1, y: currentNode.y },
+            { x: currentNode.x, y: currentNode.y + 1 },
+            { x: currentNode.x, y: currentNode.y - 1 },
+        ];
+
+        for (const { x, y } of neighbors) {
+            if (
+                x < 0 || x >= grid[0].length ||
+                y < 0 || y >= grid.length ||
+                closedSet.has(`${x},${y}`) ||
+                !grid[y][x].walkable
+            ) continue;
+
+            const g = currentNode.g + 1;
+            const h = manhatten(x, end.x, y, end.y);
+            const f = g + h;
+
+            const existing = openSet.find((n) => n.x === x && n.y === y);
+            if (existing) {
+                if (g < existing.g) {
+                    existing.g = g;
+                    existing.f = f;
+                    existing.parent = currentNode;
+                }
+            } else {
+                openSet.push({ x, y, g, h, f, parent: currentNode });
+            }
+        }
+    }
+    return null;
+}
+
+
 
 /**
  * Generate a perlin map
