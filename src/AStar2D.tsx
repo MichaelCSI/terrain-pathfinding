@@ -155,6 +155,10 @@ export default function Map2D() {
                     >
                         {map.flat().map((tile) => {
                             const { x, y } = tile.gridCoordinates;
+
+                            const isStart = startPoint && startPoint.x === x && startPoint.y === y;
+                            const isEnd = endPoint && endPoint.x === x && endPoint.y === y;
+
                             const isPathTile = visiblePath.some(p => p.x === x && p.y === y);
                             const isCurrent = visibleCurrentTile && visibleCurrentTile.x === x && visibleCurrentTile.y === y;
                             const isClosedSet = visibleClosedSetTiles.some(p => p.x === x && p.y === y);
@@ -162,7 +166,9 @@ export default function Map2D() {
 
                             let bgColor = "transparent";
 
-                            if (endPoint) {
+                            if (isStart || isEnd) {
+                                bgColor = "bg-white bg-opacity-60";
+                            } else if (endPoint) {
                                 if (isPathTile) bgColor = "bg-red-600 bg-opacity-60";
                                 else if (isCurrent) bgColor = "bg-yellow-400 bg-opacity-60";
                                 else if (isClosedSet) bgColor = "bg-gray-400 bg-opacity-40";
@@ -311,7 +317,7 @@ export default function Map2D() {
             <p className="text-lg mt-4">The Open Set</p>
             <p>
                 Nodes to be explored - prioritized based on a cost estimate (usually the sum of the path to the current node + a heuristic estimate to the goal).
-                The heuristic is some distance metric estimation, in this case it is manhatten distance since we are within a grid. It is an estimate because 
+                The heuristic is some distance metric estimation, in this case it is manhatten distance since we are within a grid. It is an estimate because
                 it assumes we can take a direct path and does not consider possible obstacles (such as unwalkable water or rocks in this case). This direct approach
                 ensures it will never ignore a lower-cost alternative path.
             </p>
@@ -319,7 +325,7 @@ export default function Map2D() {
             <p>Nodes that have already been explored and evaluated - they will not be reconsidered.</p>
             <p className="text-lg mt-4">The Step</p>
             <p>
-                At each step, a walkable (non-obstacle) node from the open set with the lowest estimated cost (sum of current path + heuristic estimate) is selected. 
+                At each step, a walkable (non-obstacle) node from the open set with the lowest estimated cost (sum of current path + heuristic estimate) is selected.
                 Its neighbors are examined, and their estimated costs and parent links are updated as necessary.
             </p>
             <p className="text-lg mt-4">The Final Path</p>

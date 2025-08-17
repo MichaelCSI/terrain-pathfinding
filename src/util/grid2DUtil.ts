@@ -10,19 +10,37 @@ export interface Point2D {
     x: number,
     y: number
 }
+// Helper function to convert Point2D to string
+const point2DToString = (p: Point2D) => `${p.x},${p.y}`;
+
 
 type TileType = "Stone" | "Grass" | "Water";
 
 
-// Node in pathfinding
-type Node = {
+// Node in A* pathfinding
+type NodeAStar = {
     x: number;
     y: number;
     g: number; // Cost from starting node to current node
     h: number; // Estimated cost from current node to end node (e.g. manhatten)
     f: number; // Total estimated cost of path through current node f = g + h
-    parent?: Node;
+    parent?: NodeAStar;
 };
+
+// Edge for MST
+interface Edge {
+    from: number;
+    to: number;
+    cost: number;
+    path: Point2D[];
+}
+
+// MST result with MST info
+interface MSTResult {
+    paths: Point2D[][];
+    connectedPOIs: Set<number>;
+    disconnectedPOIs: number[];
+}
 
 // Noise layer that defines the layers noise function, noise map scale, and factor (influence)
 export type NoiseLayer = {
@@ -55,10 +73,10 @@ function manhatten(x1: number, x2: number, y1: number, y2: number) {
  * @returns An array of points representing the path or null if no path is found
  */
 export function findPathAStar(grid: MapTile[][], start: Point2D, end: Point2D): Point2D[] | null {
-    const openSet: Node[] = [];
+    const openSet: NodeAStar[] = [];
     const closedSet: Set<string> = new Set();
 
-    const startNode: Node = {
+    const startNode: NodeAStar = {
         x: start.x,
         y: start.y,
         g: 0,
@@ -77,7 +95,7 @@ export function findPathAStar(grid: MapTile[][], start: Point2D, end: Point2D): 
         // We found the end: trace parent links to reconstruct path, return path
         if (current.x === end.x && current.y === end.y) {
             const path = [];
-            let node: Node | undefined = current;
+            let node: NodeAStar | undefined = current;
             while (node) {
                 path.unshift({ x: node.x, y: node.y });
                 node = node.parent;
@@ -134,10 +152,10 @@ export function findPathAStar(grid: MapTile[][], start: Point2D, end: Point2D): 
  * @returns An array of points representing the path or null if no path is found
  */
 export function* findPathAStarGenerator(grid: MapTile[][], start: Point2D, end: Point2D) {
-    const openSet: Node[] = [];
+    const openSet: NodeAStar[] = [];
     const closedSet: Set<string> = new Set();
 
-    const startNode: Node = {
+    const startNode: NodeAStar = {
         x: start.x,
         y: start.y,
         g: 0,
@@ -162,7 +180,7 @@ export function* findPathAStarGenerator(grid: MapTile[][], start: Point2D, end: 
         // Reached the end, yield the final path and state
         if (currentNode.x === end.x && currentNode.y === end.y) {
             const path = [];
-            let node: Node | undefined = currentNode;
+            let node: NodeAStar | undefined = currentNode;
             while (node) {
                 path.unshift({ x: node.x, y: node.y });
                 node = node.parent;
@@ -212,6 +230,63 @@ export function* findPathAStarGenerator(grid: MapTile[][], start: Point2D, end: 
     return null;
 }
 
+export function findMST(
+    map: MapTile[][],
+    points: Point2D[]
+): MSTResult {
+    if (points.length < 2) {
+        return { paths: [], connectedPOIs: new Set(), disconnectedPOIs: [] };
+    }
+    const numPoints = points.length;
+    const edges: Edge[] = [];
+
+    // Precompute pairwise shortest paths with A*
+    for (let i = 0; i < numPoints; i++) {
+        for (let j = i + 1; j < numPoints; j++) {
+            const path = findPathAStar(map, points[i], points[j]);
+            if (path) {
+                edges.push({ from: i, to: j, cost: path.length, path });
+            }
+        }
+    }
+
+    // Prim's MST
+    const inMST = new Set<number>();
+    const mstEdges: Edge[] = [];
+    inMST.add(0); // start with first POI
+
+    // Pick smallest edge that connects MST to a new node until we have all points
+    while (inMST.size < numPoints) {
+        let bestEdge: Edge | null = null;
+        for (const e of edges) {
+            if (inMST.has(e.from) && !inMST.has(e.to)) {
+                if (!bestEdge || e.cost < bestEdge.cost) bestEdge = e;
+            } else if (inMST.has(e.to) && !inMST.has(e.from)) {
+                if (!bestEdge || e.cost < bestEdge.cost) bestEdge = e;
+            }
+        }
+        if (!bestEdge) break;
+
+        mstEdges.push(bestEdge);
+        inMST.add(bestEdge.from);
+        inMST.add(bestEdge.to);
+    }
+
+    // Track disconnected points
+    const disconnected = [];
+    for (let i = 0; i < numPoints; i++) {
+        if (!inMST.has(i)) disconnected.push(i);
+    }
+
+    return {
+        paths: mstEdges.map((e) => e.path),
+        connectedPOIs: inMST,
+        disconnectedPOIs: disconnected,
+    };
+}
+
+
+
 /**
  * Helper function to make ridged perlin noise
  * @returns Noise function for ridged perlin noise
@@ -238,7 +313,7 @@ export function generatePerlinMap(
     height: number,
     layers: NoiseLayer[],
     waterThreshold: number,
-    grassThreshold:  number
+    grassThreshold: number
 ): MapTile[][] {
     const newMap: MapTile[][] = [];
 
@@ -255,11 +330,11 @@ export function generatePerlinMap(
             // Assign tile type (e.g. water) based on the noise value
             let tileType: TileType;
             if (value < waterThreshold) {
-                tileType =  "Water";
+                tileType = "Water";
             } else if (value < grassThreshold) {
-                tileType =  "Grass";
+                tileType = "Grass";
             } else {
-                tileType =  "Stone";
+                tileType = "Stone";
             }
 
             const walkable = tileType === "Grass";

@@ -58,6 +58,14 @@ export default function HomeLayout() {
                     >
                         Dynamic Terrain
                     </Link>
+                    <Link
+                        to="/mst-roads"
+                        className={`no-underline font-semibold px-3 py-2 rounded-md transition-colors duration-200 
+                        text-[var(--color-secondary)] hover:bg-[var(--color-primary)]
+                        ${location.pathname === "/mst-roads" ? "bg-[var(--color-primary)]" : ""}`}
+                    >
+                        MST Roads
+                    </Link>
                 </nav>
             </aside>
 

@@ -21,7 +21,7 @@ export default function DynamicTerrain() {
 
 
     useEffect(() => {
-        const perlinMap = generatePerlinMap(HEIGHT, WIDTH, noiseLayers, -0.1, 0.3);
+        const perlinMap = generatePerlinMap(HEIGHT, WIDTH, noiseLayers, -0.1, 0.35);
         setMap(perlinMap);
     }, [noiseLayers]);
 
@@ -104,15 +104,8 @@ export default function DynamicTerrain() {
                 <div>{renderMap()}</div>
 
                 <div className="flex flex-col gap-4">
-                    <h2 className="text-lg">Dynamic / Changing Terrain and Obstacles</h2>
-                    <div className="flex flex-col gap-4">
-                        <p>Text 1</p>
-                        <p>Text 2</p>
-                        <p>Text 3</p>
-                    </div>
-
                     <h2 className="text-lg">Noise Layer Factor Values</h2>
-                    <label className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 w-[25vw]">
                         <input
                             type="checkbox"
                             checked={manualControls}
