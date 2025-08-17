@@ -43,12 +43,20 @@ export default function HomeLayout() {
                         Home
                     </Link>
                     <Link
-                        to="/generation"
+                        to="/a-star-2d"
                         className={`no-underline font-semibold px-3 py-2 rounded-md transition-colors duration-200 
                         text-[var(--color-secondary)] hover:bg-[var(--color-primary)]
-                        ${location.pathname === "/generation" ? "bg-[var(--color-primary)]" : ""}`}
+                        ${location.pathname === "/a-star-2d" ? "bg-[var(--color-primary)]" : ""}`}
                     >
-                        2D A* pathfinding
+                        A* pathfinding in 2D
+                    </Link>
+                    <Link
+                        to="/dynamic-terrain"
+                        className={`no-underline font-semibold px-3 py-2 rounded-md transition-colors duration-200 
+                        text-[var(--color-secondary)] hover:bg-[var(--color-primary)]
+                        ${location.pathname === "/dynamic-terrain" ? "bg-[var(--color-primary)]" : ""}`}
+                    >
+                        Dynamic Terrain
                     </Link>
                 </nav>
             </aside>

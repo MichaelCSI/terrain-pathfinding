@@ -1,8 +1,9 @@
+import "./style.css";
 import { Routes, Route, Link } from 'react-router-dom';
 import Home from './Home';
-import Generation from './Map2D';
+import AStar2D from './AStar2D';
 import Sidebar from './Sidebar';
-import "./style.css";
+import DynamicTerrain from './DynamicTerrain';
 
 export default function App() {
     return (
@@ -11,7 +12,8 @@ export default function App() {
                 <Routes>
                     <Route path="/" element={<Sidebar />}>
                         <Route index element={<Home />} />
-                        <Route path="generation" element={<Generation />} />
+                        <Route path="a-star-2d" element={<AStar2D />} />
+                        <Route path="dynamic-terrain" element={<DynamicTerrain />} />
                     </Route>
                 </Routes>
             </main>

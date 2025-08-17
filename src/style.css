@@ -34,6 +34,7 @@ h3 {
 p,
 em,
 li,
+label,
 h4,
 h5 {
   color: var(--color-tertiary);

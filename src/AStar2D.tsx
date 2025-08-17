@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import { assignTilePerlinOverlay, findPathAStar, findPathAStarGenerator, generatePerlinMap, MapTile, Point2D } from "./util/grid2D";
+import { assignTilePerlinOverlay, findPathAStar, findPathAStarGenerator, generatePerlinMap, MapTile, NoiseLayer, Point2D } from "./util/grid2DUtil";
+import { createNoise2D } from "simplex-noise";
 
 const WIDTH = 64;
 const HEIGHT = 64;
@@ -8,6 +9,9 @@ const TILE_SIZE = 8;
 export default function Map2D() {
     // Perlin map grid
     const [map, setMap] = useState<MapTile[][]>([]);
+    const [noiseLayers, setNoiseLayers] = useState<NoiseLayer[]>(() => [
+        { noise: createNoise2D(), scale: 10, factor: 1 }
+    ]);
 
     // Pathfinding
     const [startPoint, setStartPoint] = useState<Point2D | null>(null);
@@ -27,10 +31,16 @@ export default function Map2D() {
 
 
     useEffect(() => {
-        const perlinMap = generatePerlinMap(HEIGHT, WIDTH);
+        const perlinMap = generatePerlinMap(HEIGHT, WIDTH, noiseLayers, 0, 0.8);
         setMap(perlinMap);
-    }, []);
+    }, [noiseLayers]);
 
+    /**
+     * Handle whenever the user clicks a tile on the map
+     * @param x Tile x coordinate
+     * @param y Tile y coordinate
+     * @returns 
+     */
     const handleClickTile = (x: number, y: number) => {
         const tile = map[y][x];
         if (!tile.tileType) return;
@@ -126,6 +136,11 @@ export default function Map2D() {
         }
     };
 
+
+    /**
+     * Render the main map with the perlin layer (base map) and path layer (pathing overlay)
+     * @returns 
+     */
     const renderMap = () => {
         return (
             <div
@@ -166,7 +181,7 @@ export default function Map2D() {
                     </div>
                 )}
 
-                {/* Perlin overlay layer */}
+                {/* Perlin map overlay layer */}
                 <div
                     className="absolute grid z-10"
                     style={{ gridTemplateColumns: `repeat(${WIDTH}, ${TILE_SIZE}px)` }}
@@ -236,8 +251,10 @@ export default function Map2D() {
 
                     <button
                         onClick={() => {
-                            const perlinMap = generatePerlinMap(HEIGHT, WIDTH);
-                            setMap(perlinMap);
+                            const newNoiseLayers: NoiseLayer[] = [
+                                { noise: createNoise2D(), scale: noiseLayers[0].scale, factor: noiseLayers[0].factor }
+                            ];
+                            setNoiseLayers(newNoiseLayers);
                         }}
                         className={`
                             default px-4 py-2 bg-blue-700
@@ -295,13 +312,14 @@ export default function Map2D() {
             <p>
                 Nodes to be explored - prioritized based on a cost estimate (usually the sum of the path to the current node + a heuristic estimate to the goal).
                 The heuristic is some distance metric estimation, in this case it is manhatten distance since we are within a grid. It is an estimate because 
-                it assumes we can take a direct path and does not consider possible obstacles (A* looks for the most direct / shortest path possible).
+                it assumes we can take a direct path and does not consider possible obstacles (such as unwalkable water or rocks in this case). This direct approach
+                ensures it will never ignore a lower-cost alternative path.
             </p>
             <p className="text-lg mt-4">The Closed Set</p>
             <p>Nodes that have already been explored and evaluated - they will not be reconsidered.</p>
             <p className="text-lg mt-4">The Step</p>
             <p>
-                At each step, a node from the open set with the lowest estimated cost (sum of current path + heuristic estimate) is selected. 
+                At each step, a walkable (non-obstacle) node from the open set with the lowest estimated cost (sum of current path + heuristic estimate) is selected. 
                 Its neighbors are examined, and their estimated costs and parent links are updated as necessary.
             </p>
             <p className="text-lg mt-4">The Final Path</p>

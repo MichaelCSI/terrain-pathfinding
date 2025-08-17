@@ -24,6 +24,13 @@ type Node = {
     parent?: Node;
 };
 
+// Noise layer that defines the layers noise function, noise map scale, and factor (influence)
+export type NoiseLayer = {
+    noise: (x: number, y: number, t?: number) => number;
+    scale: number;
+    factor: number;
+};
+
 
 /**
  * Manhattan distance between two points for pathfinding in a grid.
@@ -205,27 +212,56 @@ export function* findPathAStarGenerator(grid: MapTile[][], start: Point2D, end: 
     return null;
 }
 
-
+/**
+ * Helper function to make ridged perlin noise
+ * @returns Noise function for ridged perlin noise
+ */
+export function ridgedPerlinNoise2D(invert: boolean = false, smoothingExponent: number = 1) {
+    const noise = createNoise2D();
+    return (x: number, y: number) => {
+        let value = 1 - Math.abs(noise(x, y));
+        value = invert ? - value : value;
+        value = Math.pow(value, smoothingExponent);
+        return value;
+    }
+};
 
 /**
  * Generate a perlin map
+ * @param width Width of the map
+ * @param height Height of the map
+ * @param layers Noise layers used in the map
  * @returns A MapTile grid based on the perlin map
  */
 export function generatePerlinMap(
     width: number,
-    height: number
+    height: number,
+    layers: NoiseLayer[],
+    waterThreshold: number,
+    grassThreshold:  number
 ): MapTile[][] {
-    const noise = createNoise2D();
-
     const newMap: MapTile[][] = [];
 
     for (let y = 0; y < height; y++) {
         const row: MapTile[] = [];
         for (let x = 0; x < width; x++) {
 
-            // Assign a type to the tile based on the perlin value
-            const value = noise(x / 10, y / 10);
-            const tileType = assignTileType(value);
+            // Accumulate noise value from values in each layer
+            const value = layers.reduce((acc, layer) => {
+                const v = layer.noise(x / layer.scale, y / layer.scale);
+                return acc + v * layer.factor;
+            }, 0);
+
+            // Assign tile type (e.g. water) based on the noise value
+            let tileType: TileType;
+            if (value < waterThreshold) {
+                tileType =  "Water";
+            } else if (value < grassThreshold) {
+                tileType =  "Grass";
+            } else {
+                tileType =  "Stone";
+            }
+
             const walkable = tileType === "Grass";
 
             // Pick a tile based on the tile type
@@ -237,21 +273,6 @@ export function generatePerlinMap(
     }
 
     return newMap;
-}
-
-/**
- * Assign tile types based on noise value
- * @param noiseValue Value in noise map at a given coordinate
- * @returns A tile type that corresponds to a tileset
- */
-function assignTileType(noiseValue: number): TileType {
-    if (noiseValue < 0) {
-        return "Water";
-    } else if (noiseValue < 0.8) {
-        return "Grass";
-    } else {
-        return "Stone";
-    }
 }
 
 /**

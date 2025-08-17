@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { findPathAStar, MapTile, Point2D } from './util/grid2D';
+import { findPathAStar, MapTile, Point2D } from './util/grid2DUtil';
 
 const GRID_SIZE = 40;
 const OBSTACLE_PROBABILITY = 0.2;
