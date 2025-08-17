@@ -6,7 +6,7 @@ import {
     NoiseLayer,
     Point2D,
     findMST,
-    ridgedPerlinNoise2D
+    ridgedPerlinNoise2D,
 } from "./util/grid2DUtil";
 import { createNoise2D } from "simplex-noise";
 
@@ -33,7 +33,8 @@ export default function MSTRoads() {
     const [mstAttempted, setMstAttempted] = useState(false);
 
     // Budget we can use to get in inaccessible POIs
-    const [bridgeBudget, setBridgeBudget] = useState(10);
+    const [bridgeAllowance, setBridgeAllowance] = useState(10); // Number of bridges allowed
+    const [bridgeCost, setBridgeCost] = useState(5); // Cost per bridge
 
 
 
@@ -67,11 +68,12 @@ export default function MSTRoads() {
      */
     const connectPOIs = () => {
         setMstAttempted(true);
-        const { paths, disconnectedPOIs } = findMST(map, points);
+        const { paths, disconnectedPOIs } = findMST(map, points, bridgeAllowance, bridgeCost);
 
         // Flatten all paths into tiles within the MST
         setAllMstTiles(paths.flat());
         setDisconnectedPoints(disconnectedPOIs);
+        console.log(disconnectedPOIs)
     };
 
     /**
@@ -84,13 +86,16 @@ export default function MSTRoads() {
         setMstAttempted(false);
     };
 
-    /** Render grid + overlays */
+    /**
+     * Render the perlin map and MST overlay
+     * @returns 
+     */
     const renderMap = () => (
         <div
             className="relative"
             style={{ width: WIDTH * TILE_SIZE, height: HEIGHT * TILE_SIZE }}
         >
-            {/* Overlay */}
+            {/* MST Overlay */}
             <div
                 className="absolute grid z-20 pointer-events-none"
                 style={{ gridTemplateColumns: `repeat(${WIDTH}, ${TILE_SIZE}px)` }}
@@ -122,7 +127,7 @@ export default function MSTRoads() {
                 })}
             </div>
 
-            {/* Base map */}
+            {/* Base perlin map */}
             <div
                 className="absolute grid z-10"
                 style={{ gridTemplateColumns: `repeat(${WIDTH}, ${TILE_SIZE}px)` }}
@@ -153,6 +158,7 @@ export default function MSTRoads() {
             <h1 className="text-2xl font-bold mb-2">
                 Building "Roads" with a Minimum Spanning Tree
             </h1>
+            <p className="mb-4">Each point of interest has a bridge budget to bridge to inaccessible points</p>
 
             <div className="flex flex-col md:flex-row gap-6">
                 <div>{renderMap()}</div>
@@ -160,8 +166,37 @@ export default function MSTRoads() {
                     <h2 className="text-lg font-semibold">Points of Interest</h2>
                     <p>Click on non-obstacle tiles to place points of interest (POIs)</p>
                     <p>Click "Connect POIs" to compute a minimum spanning tree based on the first point</p>
+                    <p>Inaccessible POIs will attempt to bridge to connected POIs using bridge allowance and cost</p>
 
                     <hr className="text-green-600" />
+
+                    <div className="flex flex-col gap-2">
+                        <label>
+                            Bridge Allowance: {bridgeAllowance}
+                            <input
+                                type="range"
+                                min={0}
+                                max={50}
+                                value={bridgeAllowance}
+                                onChange={(e) => setBridgeAllowance(Number(e.target.value))}
+                                className="w-full"
+                            />
+                        </label>
+                        <label>
+                            Bridge Cost: {bridgeCost}
+                            <input
+                                type="range"
+                                min={1}
+                                max={10}
+                                value={bridgeCost}
+                                onChange={(e) => setBridgeCost(Number(e.target.value))}
+                                className="w-full"
+                            />
+                        </label>
+                    </div>
+
+                    <hr className="text-blue-600" />
+
                     {points.length === 0 && <p>No points placed</p>}
                     <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                         {points.map((p, i) => {

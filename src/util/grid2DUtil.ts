@@ -25,6 +25,7 @@ type NodeAStar = {
     h: number; // Estimated cost from current node to end node (e.g. manhatten)
     f: number; // Total estimated cost of path through current node f = g + h
     parent?: NodeAStar;
+    bridgesUsed: number; // Allow bridging to unreachable nodes if they are within this value
 };
 
 // Edge for MST
@@ -64,15 +65,24 @@ function manhatten(x1: number, x2: number, y1: number, y2: number) {
     return Math.abs(x1 - x2) + Math.abs(y1 - y2);
 }
 
+
 /**
- * Finds the shortest walkable path between two points on a 2D grid using the A* algorithm
+ * Finds the shortest path between two points on a 2D grid using the A* algorithm,
+ * with optional "bridge" steps to traverse a limited number of unwalkable tiles.
  * 
- * @param grid - The 2D array of MapTiles
- * @param start - The starting tile coordinates { x, y }
- * @param end - The ending tile coordinates { x, y }
+ * @param grid The 2D array of MapTiles
+ * @param start The starting tile coordinates { x, y }
+ * @param end The ending tile coordinates { x, y }
+ * @param bridgeSteps (Optional) Number of unwalkable tiles allowed to "bridge" across. Default = 0
  * @returns An array of points representing the path or null if no path is found
  */
-export function findPathAStar(grid: MapTile[][], start: Point2D, end: Point2D): Point2D[] | null {
+ export function findPathAStar(
+    grid: MapTile[][],
+    start: Point2D,
+    end: Point2D,
+    bridgeSteps: number = 0,
+    bridgeCost: number = 0
+): Point2D[] | null {
     const openSet: NodeAStar[] = [];
     const closedSet: Set<string> = new Set();
 
@@ -82,17 +92,18 @@ export function findPathAStar(grid: MapTile[][], start: Point2D, end: Point2D): 
         g: 0,
         h: manhatten(start.x, end.x, start.y, end.y),
         f: 0,
+        bridgesUsed: 0,
     };
     startNode.f = startNode.g + startNode.h;
 
     openSet.push(startNode);
 
+    // While some neighbors are unexplored, select node with lowest total cost
     while (openSet.length > 0) {
-        // Select node with lowest total cost (f = g + h) from unexplored nodes
         openSet.sort((a, b) => a.f - b.f);
         const current = openSet.shift()!;
 
-        // We found the end: trace parent links to reconstruct path, return path
+        // Check if we reached our goal
         if (current.x === end.x && current.y === end.y) {
             const path = [];
             let node: NodeAStar | undefined = current;
@@ -103,33 +114,40 @@ export function findPathAStar(grid: MapTile[][], start: Point2D, end: Point2D): 
             return path;
         }
 
-        // Node as been explored, add it to the closed set
-        closedSet.add(`${current.x},${current.y}`);
+        // If not, mark node as visited (track bridge state)
+        closedSet.add(`${current.x},${current.y},${current.bridgesUsed}`);
 
-        // Explore 4-directional grid neighbors (up, down, left, right)
+        // Explore neighbors (grid, 4 directions)
         const neighbors = [
             { x: current.x + 1, y: current.y },
             { x: current.x - 1, y: current.y },
             { x: current.x, y: current.y + 1 },
             { x: current.x, y: current.y - 1 },
         ];
-        for (const { x, y } of neighbors) {
-            // Skip out-of-bounds, visited, or non-walkable tiles
-            if (
-                x < 0 || x >= grid[0].length ||
-                y < 0 || y >= grid.length ||
-                closedSet.has(`${x},${y}`) ||
-                !grid[y][x].walkable
-            ) {
-                continue;
-            }
 
-            const g = current.g + 1;
-            const h = manhatten(x, end.x, y, end.y)
+        for (const { x, y } of neighbors) {
+            if (x < 0 || x >= grid[0].length || y < 0 || y >= grid.length) continue;
+
+            const isWalkable = grid[y][x].walkable;
+            const nextBridgesUsed = isWalkable ? current.bridgesUsed : current.bridgesUsed + 1;
+
+            // Skip if over bridge allowance
+            if (nextBridgesUsed > bridgeSteps) continue;
+
+            // Already explored this neighbor node
+            const stateKey = `${x},${y},${nextBridgesUsed}`;
+            if (closedSet.has(stateKey)) continue;
+
+            // If a tile is not walkable and we have to build a bridge, adjust the cost
+            const stepCost = isWalkable ? 1 : bridgeCost;
+            const g = current.g + stepCost;
+            const h = manhatten(x, end.x, y, end.y);
             const f = g + h;
 
-            // If a node is already in the open set, update it if this path is better
-            const existing = openSet.find((n) => n.x === x && n.y === y);
+            // Add neighbor to the open set if necessary, if it's already they, compare path cost
+            const existing = openSet.find(
+                (n) => n.x === x && n.y === y && n.bridgesUsed === nextBridgesUsed
+            );
             if (existing) {
                 if (g < existing.g) {
                     existing.g = g;
@@ -137,21 +155,32 @@ export function findPathAStar(grid: MapTile[][], start: Point2D, end: Point2D): 
                     existing.parent = current;
                 }
             } else {
-                openSet.push({ x, y, g, h, f, parent: current });
+                openSet.push({ x, y, g, h, f, parent: current, bridgesUsed: nextBridgesUsed });
             }
         }
     }
+
     return null;
 }
 
+
+
 /**
- * Generator version of findPathAStar() for gradually visualizing path finding rather than just the final path
- * @param grid - The 2D array of MapTiles
- * @param start - The starting tile coordinates { x, y }
- * @param end - The ending tile coordinates { x, y }
- * @returns An array of points representing the path or null if no path is found
+ * Generator version of A* pathfinding function with optional bridging through unwalkable tiles.
+ * Yields the search state at each step for visualization
+ * 
+ * @param grid The 2D array of MapTiles
+ * @param start The starting tile coordinates { x, y }
+ * @param end The ending tile coordinates { x, y }
+ * @param bridgeSteps (Optional) Number of unwalkable tiles allowed to "bridge" across. Default = 0
  */
-export function* findPathAStarGenerator(grid: MapTile[][], start: Point2D, end: Point2D) {
+ export function* findPathAStarGenerator(
+    grid: MapTile[][],
+    start: Point2D,
+    end: Point2D,
+    bridgeSteps: number = 0,
+    bridgeCost: number = 0
+) {
     const openSet: NodeAStar[] = [];
     const closedSet: Set<string> = new Set();
 
@@ -161,6 +190,7 @@ export function* findPathAStarGenerator(grid: MapTile[][], start: Point2D, end: 
         g: 0,
         h: manhatten(start.x, end.x, start.y, end.y),
         f: 0,
+        bridgesUsed: 0,
     };
     startNode.f = startNode.g + startNode.h;
     openSet.push(startNode);
@@ -172,12 +202,12 @@ export function* findPathAStarGenerator(grid: MapTile[][], start: Point2D, end: 
         // Yield the current search state
         yield {
             currentNode,
-            openSet: openSet,
+            openSet: [...openSet],
             closedSet: new Set(closedSet),
             finalPath: [],
         };
 
-        // Reached the end, yield the final path and state
+        // Goal reached
         if (currentNode.x === end.x && currentNode.y === end.y) {
             const path = [];
             let node: NodeAStar | undefined = currentNode;
@@ -185,17 +215,19 @@ export function* findPathAStarGenerator(grid: MapTile[][], start: Point2D, end: 
                 path.unshift({ x: node.x, y: node.y });
                 node = node.parent;
             }
+            // Yield final result
             yield {
                 currentNode,
-                openSet: openSet,
-                closedSet,
+                openSet: [...openSet],
+                closedSet: new Set(closedSet),
                 finalPath: path,
             };
             return;
         }
 
-        closedSet.add(`${currentNode.x},${currentNode.y}`);
+        closedSet.add(`${currentNode.x},${currentNode.y},${currentNode.bridgesUsed}`);
 
+        // Neighbors (4-way)
         const neighbors = [
             { x: currentNode.x + 1, y: currentNode.y },
             { x: currentNode.x - 1, y: currentNode.y },
@@ -204,18 +236,25 @@ export function* findPathAStarGenerator(grid: MapTile[][], start: Point2D, end: 
         ];
 
         for (const { x, y } of neighbors) {
-            if (
-                x < 0 || x >= grid[0].length ||
-                y < 0 || y >= grid.length ||
-                closedSet.has(`${x},${y}`) ||
-                !grid[y][x].walkable
-            ) continue;
+            if (x < 0 || x >= grid[0].length || y < 0 || y >= grid.length) continue;
 
-            const g = currentNode.g + 1;
+            const isWalkable = grid[y][x].walkable;
+            const stepCost = isWalkable ? 1 : bridgeCost;
+            const nextBridgesUsed = isWalkable ? currentNode.bridgesUsed : currentNode.bridgesUsed + 1;
+
+            // Too many bridges? skip
+            if (nextBridgesUsed > bridgeSteps) continue;
+
+            const stateKey = `${x},${y},${nextBridgesUsed}`;
+            if (closedSet.has(stateKey)) continue;
+
+            const g = currentNode.g + stepCost;
             const h = manhatten(x, end.x, y, end.y);
             const f = g + h;
 
-            const existing = openSet.find((n) => n.x === x && n.y === y);
+            const existing = openSet.find(
+                (n) => n.x === x && n.y === y && n.bridgesUsed === nextBridgesUsed
+            );
             if (existing) {
                 if (g < existing.g) {
                     existing.g = g;
@@ -223,16 +262,34 @@ export function* findPathAStarGenerator(grid: MapTile[][], start: Point2D, end: 
                     existing.parent = currentNode;
                 }
             } else {
-                openSet.push({ x, y, g, h, f, parent: currentNode });
+                openSet.push({
+                    x,
+                    y,
+                    g,
+                    h,
+                    f,
+                    parent: currentNode,
+                    bridgesUsed: nextBridgesUsed,
+                });
             }
         }
     }
     return null;
 }
 
+
+
+/**
+ * Compute an MST using prim and A*
+ * @param map Grid / Graph
+ * @param points Points to connect
+ * @returns MST
+ */
 export function findMST(
     map: MapTile[][],
-    points: Point2D[]
+    points: Point2D[],
+    bridgeAllowance: number = 0,
+    bridgeCost: number = 1
 ): MSTResult {
     if (points.length < 2) {
         return { paths: [], connectedPOIs: new Set(), disconnectedPOIs: [] };
@@ -243,7 +300,7 @@ export function findMST(
     // Precompute pairwise shortest paths with A*
     for (let i = 0; i < numPoints; i++) {
         for (let j = i + 1; j < numPoints; j++) {
-            const path = findPathAStar(map, points[i], points[j]);
+            const path = findPathAStar(map, points[i], points[j], bridgeAllowance, bridgeCost);
             if (path) {
                 edges.push({ from: i, to: j, cost: path.length, path });
             }
