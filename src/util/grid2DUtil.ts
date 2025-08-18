@@ -1,4 +1,5 @@
 import { createNoise2D } from "simplex-noise";
+import { MinHeap } from "./util";
 
 export interface MapTile {
     gridCoordinates: Point2D;
@@ -10,9 +11,6 @@ export interface Point2D {
     x: number,
     y: number
 }
-// Helper function to convert Point2D to string
-const point2DToString = (p: Point2D) => `${p.x},${p.y}`;
-
 
 type TileType = "Stone" | "Grass" | "Water";
 
@@ -39,8 +37,8 @@ interface Edge {
 // MST result with MST info
 interface MSTResult {
     paths: Point2D[][];
-    connectedPOIs: Set<number>;
-    disconnectedPOIs: number[];
+    connectedPOIs: Point2D[];
+    disconnectedPOIs: Point2D[];
 }
 
 // Noise layer that defines the layers noise function, noise map scale, and factor (influence)
@@ -69,11 +67,16 @@ function manhatten(x1: number, x2: number, y1: number, y2: number) {
 /**
  * Finds the shortest path between two points on a 2D grid using the A* algorithm,
  * with optional "bridge" steps to traverse a limited number of unwalkable tiles.
- * 
+ *
+ * Optimizations:
+ * - Uses a binary heap (priority queue) instead of repeatedly sorting openSet.
+ * - Tracks nodes in a hash map keyed by (x,y,bridgesUsed) for O(1) lookup.
+ *
  * @param grid The 2D array of MapTiles
  * @param start The starting tile coordinates { x, y }
  * @param end The ending tile coordinates { x, y }
  * @param bridgeSteps (Optional) Number of unwalkable tiles allowed to "bridge" across. Default = 0
+ * @param bridgeCost (Optional) Cost multiplier for bridging across an unwalkable tile. Default = 0
  * @returns An array of points representing the path or null if no path is found
  */
  export function findPathAStar(
@@ -83,29 +86,34 @@ function manhatten(x1: number, x2: number, y1: number, y2: number) {
     bridgeSteps: number = 0,
     bridgeCost: number = 0
 ): Point2D[] | null {
-    const openSet: NodeAStar[] = [];
+    // Map of known nodes (x,y,bridgesUsed) --> Node
+    const nodeMap = new Map<string, NodeAStar>();
     const closedSet: Set<string> = new Set();
 
-    const startNode: NodeAStar = {
-        x: start.x,
-        y: start.y,
-        g: 0,
-        h: manhatten(start.x, end.x, start.y, end.y),
-        f: 0,
-        bridgesUsed: 0,
-    };
-    startNode.f = startNode.g + startNode.h;
+    // Helper to generate unique key for node map
+    const makeKey = (x: number, y: number, b: number) => `${x},${y},${b}`;
 
-    openSet.push(startNode);
+    // Initial values
+    const heuristic = manhatten(start.x, end.x, start.y, end.y);
+    const startNode: NodeAStar = {x: start.x, y: start.y, g: 0, h: heuristic, f: heuristic, bridgesUsed: 0};
+
+    // Keep new nodes in a min heap (node, path cost) for quick access
+    const openSet = new MinHeap<NodeAStar>();
+    openSet.push(startNode, startNode.f);
+    nodeMap.set(makeKey(startNode.x, startNode.y, 0), startNode);
 
     // While some neighbors are unexplored, select node with lowest total cost
-    while (openSet.length > 0) {
-        openSet.sort((a, b) => a.f - b.f);
-        const current = openSet.shift()!;
+    while (!openSet.isEmpty()) {
+        const current = openSet.pop()!;
+        const currentKey = makeKey(current.x, current.y, current.bridgesUsed);
 
-        // Check if we reached our goal
+        // If already closed, skip
+        if (closedSet.has(currentKey)) continue;
+        closedSet.add(currentKey);
+
+        // Goal reached
         if (current.x === end.x && current.y === end.y) {
-            const path = [];
+            const path: Point2D[] = [];
             let node: NodeAStar | undefined = current;
             while (node) {
                 path.unshift({ x: node.x, y: node.y });
@@ -113,9 +121,6 @@ function manhatten(x1: number, x2: number, y1: number, y2: number) {
             }
             return path;
         }
-
-        // If not, mark node as visited (track bridge state)
-        closedSet.add(`${current.x},${current.y},${current.bridgesUsed}`);
 
         // Explore neighbors (grid, 4 directions)
         const neighbors = [
@@ -134,9 +139,8 @@ function manhatten(x1: number, x2: number, y1: number, y2: number) {
             // Skip if over bridge allowance
             if (nextBridgesUsed > bridgeSteps) continue;
 
-            // Already explored this neighbor node
-            const stateKey = `${x},${y},${nextBridgesUsed}`;
-            if (closedSet.has(stateKey)) continue;
+            const neighborKey = makeKey(x, y, nextBridgesUsed);
+            if (closedSet.has(neighborKey)) continue;
 
             // If a tile is not walkable and we have to build a bridge, adjust the cost
             const stepCost = isWalkable ? 1 : bridgeCost;
@@ -144,24 +148,18 @@ function manhatten(x1: number, x2: number, y1: number, y2: number) {
             const h = manhatten(x, end.x, y, end.y);
             const f = g + h;
 
-            // Add neighbor to the open set if necessary, if it's already they, compare path cost
-            const existing = openSet.find(
-                (n) => n.x === x && n.y === y && n.bridgesUsed === nextBridgesUsed
-            );
-            if (existing) {
-                if (g < existing.g) {
-                    existing.g = g;
-                    existing.f = f;
-                    existing.parent = current;
-                }
-            } else {
-                openSet.push({ x, y, g, h, f, parent: current, bridgesUsed: nextBridgesUsed });
+            const existing = nodeMap.get(neighborKey);
+            if (!existing || g < existing.g) {
+                const neighborNode: NodeAStar = {x, y, g, h, f, parent: current, bridgesUsed: nextBridgesUsed};
+                nodeMap.set(neighborKey, neighborNode);
+                openSet.push(neighborNode, f);
             }
         }
     }
 
     return null;
 }
+
 
 
 
@@ -292,7 +290,7 @@ export function findMST(
     bridgeCost: number = 1
 ): MSTResult {
     if (points.length < 2) {
-        return { paths: [], connectedPOIs: new Set(), disconnectedPOIs: [] };
+        return { paths: [], connectedPOIs: [], disconnectedPOIs: [] };
     }
     const numPoints = points.length;
     const edges: Edge[] = [];
@@ -332,12 +330,14 @@ export function findMST(
     // Track disconnected points
     const disconnected = [];
     for (let i = 0; i < numPoints; i++) {
-        if (!inMST.has(i)) disconnected.push(i);
+        if (!inMST.has(i)) disconnected.push(points[i]);
     }
+
+    const connected = Array.from(inMST, i => points[i]);
 
     return {
         paths: mstEdges.map((e) => e.path),
-        connectedPOIs: inMST,
+        connectedPOIs: connected,
         disconnectedPOIs: disconnected,
     };
 }

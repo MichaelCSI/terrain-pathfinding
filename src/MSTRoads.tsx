@@ -7,12 +7,64 @@ import {
     Point2D,
     findMST,
     ridgedPerlinNoise2D,
+    findPathAStar,
 } from "./util/grid2DUtil";
 import { createNoise2D } from "simplex-noise";
 
 const WIDTH = 128;
 const HEIGHT = 128;
 const TILE_SIZE = 4;
+
+
+/**
+ * Helper function to add new points to an existing MST without re-computing the whole thing
+ * @param map The grid / graph
+ * @param currentPoints The current points in the MST
+ * @param newPoint New point to add to MST
+ * @param currentMST The current MST
+ * @param bridgeAllowance Allowed bridging over unwalkable tiles
+ * @param bridgeCost Cost per bridge tile
+ * @returns MST as paths with a list of disconnected points
+ */
+function updateMSTWithNewPoint(
+    map: MapTile[][],
+    currentPoints: Point2D[],
+    newPoint: Point2D,
+    currentMST: { paths: Point2D[], disconnectedPOIs: Point2D[] },
+    bridgeAllowance: number,
+    bridgeCost: number
+) {
+    // Compute shortest paths from new point to all existing points in MST
+    const candidates: { cost: number, path: Point2D[] }[] = [];
+    for (const existing of currentPoints) {
+        const path = findPathAStar(map, newPoint, existing, bridgeAllowance, bridgeCost);
+        if (path) {
+            candidates.push({ cost: path.length, path });
+        }
+    }
+
+    // Pick the cheapest connection
+    candidates.sort((a, b) => a.cost - b.cost);
+    const best = candidates[0];
+
+    if (!best) {
+        // Can't connect, mark as disconnected
+        return {
+            paths: [...currentMST.paths],
+            disconnectedPOIs: [...currentMST.disconnectedPOIs, newPoint]
+        };
+    }
+
+    // Add the new path into MST
+    return {
+        paths: [...currentMST.paths, best.path],
+        disconnectedPOIs: currentMST.disconnectedPOIs.filter(
+            p => !(p.x === newPoint.x && p.y === newPoint.y)
+        )
+    };
+}
+
+
 
 export default function MSTRoads() {
     const [map, setMap] = useState<MapTile[][]>([]);
@@ -24,7 +76,7 @@ export default function MSTRoads() {
 
     // User-defined points
     const [points, setPoints] = useState<Point2D[]>([]);
-    const [disconnectedPoints, setDisconnectedPoints] = useState<number[]>([]);
+    const [disconnectedPoints, setDisconnectedPoints] = useState<Point2D[]>([]);
 
     // Tiles within the MST
     const [allMstTiles, setAllMstTiles] = useState<Point2D[]>([]);
@@ -63,18 +115,36 @@ export default function MSTRoads() {
         setPoints((prev) => [...prev, newPoint]);
     };
 
-    /**
-     * Connect all points of interest in MST
-     */
-    const connectPOIs = () => {
-        setMstAttempted(true);
-        const { paths, disconnectedPOIs } = findMST(map, points, bridgeAllowance, bridgeCost);
+    // Connect all points of interest in MST when we have 2+ points (repeats for new points)
+    useEffect(() => {
+        if (points.length > 1) {
+            setMstAttempted(true);
 
-        // Flatten all paths into tiles within the MST
-        setAllMstTiles(paths.flat());
-        setDisconnectedPoints(disconnectedPOIs);
-        console.log(disconnectedPOIs)
-    };
+            // No MST, compute one (also re-compute when bridge allowance/cost changes)
+            if (allMstTiles.length === 0 || bridgeAllowance || bridgeCost) {
+                const { paths, disconnectedPOIs } = findMST(map, points, bridgeAllowance, bridgeCost);
+                // Flatten 2D array of paths (MST) into direct MST tiles
+                setAllMstTiles(paths.flat());
+                setDisconnectedPoints(disconnectedPOIs);
+            }
+            // Append to existing MST
+            else {
+                const newPoint = points[points.length - 1];
+                const updated = updateMSTWithNewPoint(
+                    map,
+                    points.slice(0, -1),
+                    newPoint,
+                    { paths: allMstTiles, disconnectedPOIs: disconnectedPoints },
+                    bridgeAllowance,
+                    bridgeCost
+                );
+                // Flatten 2D array of paths (MST) into direct MST tiles
+                setAllMstTiles(updated.paths.flat());
+                setDisconnectedPoints(updated.disconnectedPOIs);
+            }
+        }
+    }, [points, bridgeAllowance, bridgeCost]);
+
 
     /**
      * Reset relevant stateful variables
@@ -102,30 +172,41 @@ export default function MSTRoads() {
             >
                 {map.flat().map((tile) => {
                     const { x, y } = tile.gridCoordinates;
-                    const poiIndex = points.findIndex((p) => p.x === x && p.y === y);
-                    const isPOI = poiIndex !== -1;
-                    const isDisconnected = disconnectedPoints.includes(poiIndex);
+                    const isPOI = points.some((p) => p.x === x && p.y === y);
+                    const isDisconnected = disconnectedPoints.some((p) => p.x === x && p.y === y);
                     const isMST = allMstTiles.some((p) => p.x === x && p.y === y);
 
                     let bgColor = "transparent";
 
                     if (isPOI) {
                         bgColor = isDisconnected
-                            ? "bg-red-500 bg-opacity-70" // disconnected POIs red
-                            : "bg-white bg-opacity-70"; // normal POIs white
+                            ? "bg-red-500 bg-opacity-70"
+                            : "bg-white bg-opacity-70";
                     } else if (isMST) {
-                        bgColor = "bg-amber-400 bg-opacity-60"; // MST edges
+                        bgColor = "bg-amber-400 bg-opacity-60";
                     }
+
+                    const poiIndex = points.findIndex(p => p.x === x && p.y === y);
 
                     return (
                         <div
                             key={`overlay-${x}-${y}`}
-                            className={bgColor}
-                            style={{ width: TILE_SIZE, height: TILE_SIZE }}
-                        />
+                            className={`${bgColor} relative flex items-center justify-center`}
+                            style={{ width: TILE_SIZE, height: TILE_SIZE, fontSize: TILE_SIZE * 0.6 }}
+                        >
+                            {isPOI && (
+                                <span
+                                    className={`${isDisconnected ? "text-red-600" : "text-white"} select-none z-10`}
+                                    style={{ fontSize: TILE_SIZE * 2.5 }}
+                                >
+                                    {`Point ${poiIndex + 1} \n (${x},${y})`}
+                                </span>
+                            )}
+                        </div>
                     );
                 })}
             </div>
+
 
             {/* Base perlin map */}
             <div
@@ -186,7 +267,7 @@ export default function MSTRoads() {
                             Bridge Cost: {bridgeCost}
                             <input
                                 type="range"
-                                min={1}
+                                min={0}
                                 max={10}
                                 value={bridgeCost}
                                 onChange={(e) => setBridgeCost(Number(e.target.value))}
@@ -197,21 +278,7 @@ export default function MSTRoads() {
 
                     <hr className="text-blue-600" />
 
-                    {points.length === 0 && <p>No points placed</p>}
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                        {points.map((p, i) => {
-                            const isDisconnected = disconnectedPoints.includes(i);
-                            return (
-                                <p
-                                    key={`poi-${i}`}
-                                    className={isDisconnected ? "text-red-600" : ""}
-                                >
-                                    {i + 1}: ({p.x}, {p.y})
-                                    {isDisconnected && " – disconnected"}
-                                </p>
-                            );
-                        })}
-                    </div>
+                    {points.length < 2 && <p>Place 2+ points for MST</p>}
 
                     {/* MST Found */}
                     {mstAttempted && allMstTiles.length > 0 && (
@@ -227,14 +294,7 @@ export default function MSTRoads() {
                         </p>
                     )}
 
-                    {points.length >= 2 &&
-                        <button
-                            onClick={connectPOIs}
-                            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-800"
-                        >
-                            Connect POIs
-                        </button>
-                    }
+
                     <button
                         onClick={resetAll}
                         className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-700"
