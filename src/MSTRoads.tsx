@@ -175,6 +175,9 @@ export default function MSTRoads() {
                     const isPOI = points.some((p) => p.x === x && p.y === y);
                     const isDisconnected = disconnectedPoints.some((p) => p.x === x && p.y === y);
                     const isMST = allMstTiles.some((p) => p.x === x && p.y === y);
+                    const isBridge = isMST && (
+                        map[y][x].tileType === "Water" || map[y][x].tileType === "Stone"
+                    );
 
                     let bgColor = "transparent";
 
@@ -183,7 +186,7 @@ export default function MSTRoads() {
                             ? "bg-red-500 bg-opacity-70"
                             : "bg-white bg-opacity-70";
                     } else if (isMST) {
-                        bgColor = "bg-amber-400 bg-opacity-60";
+                        bgColor = `bg-amber-400 bg-opacity-60 border-1 ${isBridge ? "" : "border-amber-500"}`;
                     }
 
                     const poiIndex = points.findIndex(p => p.x === x && p.y === y);
@@ -278,21 +281,23 @@ export default function MSTRoads() {
 
                     <hr className="text-blue-600" />
 
-                    {points.length < 2 && <p>Place 2+ points for MST</p>}
+                    {/* MST status */}
+                    {
+                        mstAttempted ? (
+                            allMstTiles.length > 0 ? (
+                                <p className="text-green-600 font-semibold">
+                                    {`MST total length: ${allMstTiles.length} steps`}
+                                </p>
+                            ) : (
+                                <p className="text-red-600 font-semibold">
+                                    Points do not connect
+                                </p>
+                            )
+                        ) : (
+                            <p>Place 2+ points for MST</p>
+                        )
+                    }
 
-                    {/* MST Found */}
-                    {mstAttempted && allMstTiles.length > 0 && (
-                        <p className="text-green-600 font-semibold">
-                            {`MST total length: ${allMstTiles.length} steps`}
-                        </p>
-                    )}
-
-                    {/* No MST */}
-                    {mstAttempted && points.length >= 2 && allMstTiles.length === 0 && (
-                        <p className="text-red-600 font-semibold">
-                            Points do not connect
-                        </p>
-                    )}
 
 
                     <button
