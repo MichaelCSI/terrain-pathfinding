@@ -240,23 +240,26 @@ export default function MSTRoads() {
     return (
         <div className="p-4">
             <h1 className="text-2xl font-bold mb-2">
-                Building "Roads" with a Minimum Spanning Tree
+                Building "Roads" with a Minimum Spanning Tree (MST)
             </h1>
             <p className="mb-4">Each point of interest has a bridge budget to bridge to inaccessible points</p>
 
             <div className="flex flex-col md:flex-row gap-6">
-                <div>{renderMap()}</div>
-                <div className="flex flex-col gap-4 w-[30vw]">
+                <div className="mt-9">{renderMap()}</div>
+                <div className="flex flex-col gap-4 w-[35vw]">
                     <h2 className="text-lg font-semibold">Points of Interest</h2>
                     <p>Click on non-obstacle tiles to place points of interest (POIs)</p>
-                    <p>Click "Connect POIs" to compute a minimum spanning tree based on the first point</p>
-                    <p>Inaccessible POIs will attempt to bridge to connected POIs using bridge allowance and cost</p>
+                    <p>Click "Connect POIs" to compute an MST between POIs based on the first point</p>
+                    <p>
+                        Inaccessible POIs will attempt to bridge to connected POIs within range of their bridge allowance.
+                        Bridge cost affects how bridges are used in the path (the MST will opt for lowest cost paths).
+                    </p>
 
                     <hr className="text-green-600" />
 
                     <div className="flex flex-col gap-2">
                         <label>
-                            Bridge Allowance: {bridgeAllowance}
+                            Bridge Allowance per Point: {bridgeAllowance}
                             <input
                                 type="range"
                                 min={0}

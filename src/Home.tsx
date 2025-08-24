@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { findPathAStar, MapTile, Point2D } from './util/grid2DUtil';
 
-const GRID_SIZE = 40;
+const GRID_SIZE_X = 80;
+const GRID_SIZE_Y = 50;
 const OBSTACLE_PROBABILITY = 0.2;
 const INITIAL_SNAKE: Point2D[] = [
     { x: 10, y: 10 },
@@ -24,8 +25,8 @@ const INITIAL_SNAKE: Point2D[] = [
  * @returns A 2D grid of Map tiles
  */
 function createWalkableGrid(snake: Point2D[]): MapTile[][] {
-    return Array(GRID_SIZE).fill(null).map((_, y) =>
-        Array(GRID_SIZE).fill(null).map((_, x) => {
+    return Array(GRID_SIZE_Y).fill(null).map((_, y) =>
+        Array(GRID_SIZE_X).fill(null).map((_, x) => {
             const isSnake = snake.some(p => p.x === x && p.y === y);
             const isObstacle = !isSnake && Math.random() < OBSTACLE_PROBABILITY;
 
@@ -51,8 +52,8 @@ function computeTargetPath(snake: Point2D[], grid: MapTile[][]) {
     // Create a target that is not on the snake, on an obstacle, or unpathable
     do {
         target = {
-            x: Math.floor(Math.random() * GRID_SIZE),
-            y: Math.floor(Math.random() * GRID_SIZE),
+            x: Math.floor(Math.random() * GRID_SIZE_X),
+            y: Math.floor(Math.random() * GRID_SIZE_Y),
         };
         path = findPathAStar(grid, snake[0], target);
         attempts++;
@@ -61,8 +62,8 @@ function computeTargetPath(snake: Point2D[], grid: MapTile[][]) {
             return { target: snake[0], path: [] };
         }
     } while (
+        // Repeat target finding until we get a point not on the snake that is pathable
         snake.some(p => p.x === target.x && p.y === target.y) ||
-        !grid[target.y][target.x].walkable ||
         !path
     );
 
@@ -72,14 +73,17 @@ function computeTargetPath(snake: Point2D[], grid: MapTile[][]) {
 
 
 export default function Home() {
+    const containerRef = useRef<HTMLDivElement>(null);
+
     // Initil snake position, grid, target, and path
     const [snake, setSnake] = useState<Point2D[]>(INITIAL_SNAKE);
-    const [grid, _] = useState<MapTile[][]>(createWalkableGrid(snake))
+    const [grid, _] = useState<MapTile[][]>(createWalkableGrid(snake));
     const [target, setTarget] = useState<Point2D>(computeTargetPath(snake, grid).target);
 
     // Calculate initial path ... slice(1) to not count snake head
     const initialPath = findPathAStar(grid, snake[0], target) ?? [];
     const [path, setPath] = useState<Point2D[]>(initialPath.slice(1));
+
 
     // Move the snake at regular intervals
     useEffect(() => {
@@ -113,98 +117,39 @@ export default function Home() {
 
 
     return (
-        <div>
-            <h1 className="text-2xl font-bold mb-4">Exploring Terrain Generation and Pathfinding Algorithms</h1>
-            <div className="flex">
-                <div className="flex-1 overflow-auto pr-4">
-                    <h3 className="text-xl font-semibold mb-2">Small, static 2D maps</h3>
-                    <ul className="list-disc list-inside mb-4">
-                        <li>A*, Jump Point Search, Theta*</li>
-                        <li>A* is fast and optimal; JPS speeds up uniform grids; Theta* allows smoother, any-angle paths</li>
-                        <li>Bonus: Smoothing terrain
-                            <ul className="list-disc list-inside ml-5">
-                                <li>Theta*, Lazy Theta*, Field D*</li>
-                                <li>E.g. Bézier curves to avoid zig zags</li>
-                            </ul>
-                        </li>
-                    </ul>
+        <div className="w-full h-[92vh] relative">
+            <h1 className="z-10 text-4xl font-bold absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap">
+                Terrain Generation and Pathfinding Algorithms
+            </h1>
+            <div
+                className="grid w-full h-full aspect-square mx-auto"
+                style={{
+                    gridTemplateColumns: `repeat(${GRID_SIZE_X}, minmax(0, 1fr))`,
+                    gridTemplateRows: `repeat(${GRID_SIZE_Y}, minmax(0, 1fr))`
+                }}
+            >
+                {[...Array(GRID_SIZE_X * GRID_SIZE_Y)].map((_, i) => {
+                    const x = i % GRID_SIZE_X;
+                    const y = Math.floor(i / GRID_SIZE_X);
+                    const isSnake = snake.some((part) => part.x === x && part.y === y);
+                    const isTarget = target.x === x && target.y === y;
+                    const isObstacle = !grid[y][x].walkable;
+                    let color = 'transparent';
+                    if (isTarget) {
+                        color = 'red';
+                    } else if (isSnake) {
+                        color = 'var(--color-secondary)';
+                    } else if (isObstacle) {
+                        color = 'var(--color-menu-bg)';
+                    }
 
-                    <h3 className="text-xl font-semibold mb-2">Weighted terrain</h3>
-                    <ul className="list-disc list-inside mb-4">
-                        <li>A* with custom costs, Fringe Search, Field D*</li>
-                        <li>Handles different movement costs like mud, hills, etc.</li>
-                    </ul>
-
-                    <h3 className="text-xl font-semibold mb-2">Large open world (generally flat)</h3>
-                    <ul className="list-disc list-inside mb-4">
-                        <li>HPA*, NavMesh, Flow Fields</li>
-                        <li>Breaks world into regions or polygons; efficient for large maps and many agents</li>
-                    </ul>
-
-                    <h3 className="text-xl font-semibold mb-2">3D continuous space (moving in X/Y/Z e.g. flying)</h3>
-                    <ul className="list-disc list-inside mb-4">
-                        <li>3D A*, PRM, RRT*, Visibility Graphs (expensive)
-                            <ul className="list-disc list-inside ml-5">
-                                <li>Also good for High obstacle density (tight navigation)</li>
-                            </ul>
-                        </li>
-                        <li>Works in volumetric spaces; PRM/RRT handle complex obstacles</li>
-                    </ul>
-
-                    <h3 className="text-xl font-semibold mb-2">Dynamic changing map</h3>
-                    <ul className="list-disc list-inside mb-4">
-                        <li>D* Lite, Dynamic A*, ARA*</li>
-                        <li>Quickly replans when obstacles appear/disappear</li>
-                    </ul>
-
-                    <h3 className="text-xl font-semibold mb-2">Multi-agent</h3>
-                    <ul className="list-disc list-inside mb-4">
-                        <li>Cooperative A*, CBS, Flow Fields</li>
-                        <li>Avoids collisions and coordinates groups</li>
-                    </ul>
-
-                    <h3 className="text-xl font-semibold mb-2">Crowds / Swarms</h3>
-                    <ul className="list-disc list-inside">
-                        <li>Flow Fields, Boids, Ant Colony Optimization</li>
-                        <li>Scales well with many agents; natural movement patterns</li>
-                    </ul>
-                </div>
-
-                <div className="flex-1 flex flex-col justify-center items-center h-[75vh]">
-                    <div
-                        className="grid border border-white"
-                        style={{
-                            gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
-                            gridTemplateRows: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
-                            width: '80%',
-                            height: '80%',
-                        }}
-                    >
-                        {[...Array(GRID_SIZE * GRID_SIZE)].map((_, i) => {
-                            const x = i % GRID_SIZE;
-                            const y = Math.floor(i / GRID_SIZE);
-                            const isSnake = snake.some((part) => part.x === x && part.y === y);
-                            const isTarget = target.x === x && target.y === y;
-                            const isObstacle = !grid[y][x].walkable;
-                            let color = 'transparent';
-                            if (isTarget) {
-                                color = 'red';
-                            } else if (isSnake) {
-                                color = 'green';
-                            } else if (isObstacle) {
-                                color = 'grey';
-                            }
-
-                            return (
-                                <div
-                                    key={i}
-                                    style={{ backgroundColor: color }}
-                                />
-                            );
-                        })}
-                    </div>
-                    <em className='mt-2'>A* pathfinding on a known grid with random obstacles</em>
-                </div>
+                    return (
+                        <div
+                            key={i}
+                            style={{ backgroundColor: color }}
+                        />
+                    );
+                })}
             </div>
         </div>
     );

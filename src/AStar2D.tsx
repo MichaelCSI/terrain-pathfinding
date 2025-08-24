@@ -24,13 +24,44 @@ export default function Map2D() {
     const [visibleCurrentTile, setVisibleCurrentTile] = useState<Point2D | null>(null);
     const [visibleClosedSetTiles, setVisibleClosedSetTiles] = useState<Point2D[]>([]);
     const [visibleOpenSetTiles, setVisibleOpenSetTiles] = useState<Point2D[]>([]);
-    const [showPathfindingProcess, setShowPathfindingProcess] = useState<boolean>(false);
 
+    // Option to use generator function for A* and show the pathfinding process
+    const [showPathfindingProcess, setShowPathfindingProcess] = useState<boolean>(false);
     // Store generator visualization process in a ref so we can cancel it when needed
     const pathfindingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    // Store regular A* interval in a ref so we can cancel it when needed
+    const pathfindingTimeoutsRef = useRef<NodeJS.Timeout[]>([]);
 
+
+    /**
+     * Helper function to reset the state of the map
+     */
+    const resetState = () => {
+        setStartPoint(null);
+        setEndPoint(null);
+        setPath([]);
+
+        setVisibleCurrentTile(null);
+        setVisiblePath([]);
+        setVisibleClosedSetTiles([]);
+        setVisibleOpenSetTiles([]);
+
+        setPathFound("No path defined");
+
+        // Clear any previous interval from pathfinding generator
+        if (pathfindingIntervalRef.current) {
+            clearInterval(pathfindingIntervalRef.current);
+            pathfindingIntervalRef.current = null;
+        }
+
+        // Clear any intervals from regular pathfinding
+        pathfindingTimeoutsRef.current.forEach(clearTimeout);
+        pathfindingTimeoutsRef.current = [];
+    }
 
     useEffect(() => {
+        resetState();
+
         const perlinMap = generatePerlinMap(HEIGHT, WIDTH, noiseLayers, 0, 0.8);
         setMap(perlinMap);
     }, [noiseLayers]);
@@ -48,22 +79,7 @@ export default function Map2D() {
         const isWalkable = tile.tileType !== "Water" && tile.tileType !== "Stone";
 
         if (startPoint && endPoint) {
-            setStartPoint(null);
-            setEndPoint(null);
-            setPath([]);
-
-            setVisibleCurrentTile(null);
-            setVisiblePath([]);
-            setVisibleClosedSetTiles([]);
-            setVisibleOpenSetTiles([]);
-
-            setPathFound("No path defined");
-
-            // Clear any previous interval from pathfinding generator
-            if (pathfindingIntervalRef.current) {
-                clearInterval(pathfindingIntervalRef.current);
-                pathfindingIntervalRef.current = null;
-            }
+            resetState();
             return;
         }
 
@@ -124,14 +140,16 @@ export default function Map2D() {
                     setPath(result);
                     setVisiblePath([]);
                     result.forEach((tile, index) => {
-                        setTimeout(() => {
+                        const timeoutId = setTimeout(() => {
                             setVisiblePath((prev) => [...prev, tile]);
                         }, index * 50);
+                        pathfindingTimeoutsRef.current.push(timeoutId);
                     });
                     setPathFound("Path found!");
                 } else {
                     setPathFound("No path found!");
                 }
+
             }
         }
     };
