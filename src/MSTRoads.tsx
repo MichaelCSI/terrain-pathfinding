@@ -30,7 +30,7 @@ function updateMSTWithNewPoint(
     map: MapTile[][],
     currentPoints: Point2D[],
     newPoint: Point2D,
-    currentMST: { paths: Point2D[], disconnectedPOIs: Point2D[] },
+    currentMST: { paths: Point2D[], disconnectedPoints: Point2D[] },
     bridgeAllowance: number,
     bridgeCost: number
 ) {
@@ -51,14 +51,14 @@ function updateMSTWithNewPoint(
         // Can't connect, mark as disconnected
         return {
             paths: [...currentMST.paths],
-            disconnectedPOIs: [...currentMST.disconnectedPOIs, newPoint]
+            disconnectedPoints: [...currentMST.disconnectedPoints, newPoint]
         };
     }
 
     // Add the new path into MST
     return {
         paths: [...currentMST.paths, best.path],
-        disconnectedPOIs: currentMST.disconnectedPOIs.filter(
+        disconnectedPoints: currentMST.disconnectedPoints.filter(
             p => !(p.x === newPoint.x && p.y === newPoint.y)
         )
     };
@@ -115,17 +115,17 @@ export default function MSTRoads() {
         setPoints((prev) => [...prev, newPoint]);
     };
 
-    // Connect all points of interest in MST when we have 2+ points (repeats for new points)
+    // Connect all points in MST when we have 2+ points (repeats for new points)
     useEffect(() => {
         if (points.length > 1) {
             setMstAttempted(true);
 
             // No MST, compute one (also re-compute when bridge allowance/cost changes)
             if (allMstTiles.length === 0 || bridgeAllowance || bridgeCost) {
-                const { paths, disconnectedPOIs } = findMST(map, points, bridgeAllowance, bridgeCost);
+                const { paths, disconnectedPoints } = findMST(map, points, bridgeAllowance, bridgeCost);
                 // Flatten 2D array of paths (MST) into direct MST tiles
                 setAllMstTiles(paths.flat());
-                setDisconnectedPoints(disconnectedPOIs);
+                setDisconnectedPoints(disconnectedPoints);
             }
             // Append to existing MST
             else {
@@ -134,13 +134,13 @@ export default function MSTRoads() {
                     map,
                     points.slice(0, -1),
                     newPoint,
-                    { paths: allMstTiles, disconnectedPOIs: disconnectedPoints },
+                    { paths: allMstTiles, disconnectedPoints: disconnectedPoints },
                     bridgeAllowance,
                     bridgeCost
                 );
                 // Flatten 2D array of paths (MST) into direct MST tiles
                 setAllMstTiles(updated.paths.flat());
-                setDisconnectedPoints(updated.disconnectedPOIs);
+                setDisconnectedPoints(updated.disconnectedPoints);
             }
         }
     }, [points, bridgeAllowance, bridgeCost]);
@@ -195,13 +195,10 @@ export default function MSTRoads() {
                         <div
                             key={`overlay-${x}-${y}`}
                             className={`${bgColor} relative flex items-center justify-center`}
-                            style={{ width: TILE_SIZE, height: TILE_SIZE, fontSize: TILE_SIZE * 0.6 }}
+                            style={{ width: TILE_SIZE, height: TILE_SIZE, fontSize: TILE_SIZE * 2.5 }}
                         >
                             {isPOI && (
-                                <span
-                                    className={`${isDisconnected ? "text-red-600" : "text-white"} select-none z-10`}
-                                    style={{ fontSize: TILE_SIZE * 2.5 }}
-                                >
+                                <span className={`${isDisconnected ? "text-red-600" : "text-white"} select-none`}>
                                     {`Point ${poiIndex + 1} \n (${x},${y})`}
                                 </span>
                             )}
@@ -247,13 +244,16 @@ export default function MSTRoads() {
             <div className="flex flex-col md:flex-row gap-6">
                 <div className="mt-9">{renderMap()}</div>
                 <div className="flex flex-col gap-4 w-[35vw]">
-                    <h2 className="text-lg font-semibold">Points of Interest</h2>
-                    <p>Click on non-obstacle tiles to place points of interest (POIs)</p>
-                    <p>Click "Connect POIs" to compute an MST between POIs based on the first point</p>
-                    <p>
-                        Inaccessible POIs will attempt to bridge to connected POIs within range of their bridge allowance.
-                        Bridge cost affects how bridges are used in the path (the MST will opt for lowest cost paths).
-                    </p>
+                    <h2 className="text-lg">Instructions</h2>
+                    <ol className="list-decimal ml-5 space-y-1">
+                        <li>Click on non-obstacle (green) tiles to place points</li>
+                        <li>Click "Connect Points" to compute an MST based on the first point</li>
+                    </ol>
+                    <p className="font-semibold">Notes</p>
+                    <ul className="list-disc ml-5 space-y-1">
+                        <li>Inaccessible points will attempt to bridge to connected points within range of their bridge allowance</li>
+                        <li>Bridge cost affects how bridges are used in the path (the MST will opt for lowest cost paths)</li>
+                    </ul>
 
                     <hr className="text-green-600" />
 

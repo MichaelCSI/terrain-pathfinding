@@ -37,8 +37,8 @@ interface Edge {
 // MST result with MST info
 interface MSTResult {
     paths: Point2D[][];
-    connectedPOIs: Point2D[];
-    disconnectedPOIs: Point2D[];
+    connectedPoints: Point2D[];
+    disconnectedPoints: Point2D[];
 }
 
 // Noise layer that defines the layers noise function, noise map scale, and factor (influence)
@@ -290,7 +290,7 @@ export function findMST(
     bridgeCost: number = 1
 ): MSTResult {
     if (points.length < 2) {
-        return { paths: [], connectedPOIs: [], disconnectedPOIs: [] };
+        return { paths: [], connectedPoints: [], disconnectedPoints: [] };
     }
     const numPoints = points.length;
     const edges: Edge[] = [];
@@ -337,8 +337,8 @@ export function findMST(
 
     return {
         paths: mstEdges.map((e) => e.path),
-        connectedPOIs: connected,
-        disconnectedPOIs: disconnected,
+        connectedPoints: connected,
+        disconnectedPoints: disconnected,
     };
 }
 

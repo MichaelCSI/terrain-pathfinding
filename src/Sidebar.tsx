@@ -51,6 +51,14 @@ export default function HomeLayout() {
                         A* pathfinding in 2D
                     </Link>
                     <Link
+                        to="/multi-agent"
+                        className={`no-underline font-semibold px-3 py-2 rounded-md transition-colors duration-200 
+                        text-[var(--color-secondary)] hover:bg-[var(--color-primary)]
+                        ${location.pathname === "/multi-agent" ? "bg-[var(--color-primary)]" : ""}`}
+                    >
+                        Multi-Agent Pathfinding
+                    </Link>
+                    <Link
                         to="/dynamic-terrain"
                         className={`no-underline font-semibold px-3 py-2 rounded-md transition-colors duration-200 
                         text-[var(--color-secondary)] hover:bg-[var(--color-primary)]

@@ -182,7 +182,7 @@ export default function Map2D() {
                             const isClosedSet = visibleClosedSetTiles.some(p => p.x === x && p.y === y);
                             const isOpenSet = visibleOpenSetTiles.some(p => p.x === x && p.y === y);
 
-                            let bgColor = "transparent";
+                            let bgColor = "bg-transparent";
 
                             if (isStart || isEnd) {
                                 bgColor = "bg-white bg-opacity-60";
@@ -243,11 +243,14 @@ export default function Map2D() {
                 <div className="flex flex-col gap-4">
 
                     <h2 className="text-lg">Instructions</h2>
-                    <div className="flex flex-col gap-4">
-                        <p>Click on two grass (green) tiles</p>
-                        <p>A* will attempt to find a walkable path</p>
-                        <p>Water (blue) and Stone (grey) are not walkable</p>
-                    </div>
+                    <ol className="list-decimal ml-5 space-y-1">
+                        <li>Click on two grass (green) tiles</li>
+                        <li>A* will attempt to find a walkable path</li>
+                    </ol>
+                    <p className="font-semibold">Notes</p>
+                    <ul className="list-disc ml-5 space-y-1">
+                        <li>Water (blue) and Stone (grey) are not walkable</li>
+                    </ul>
                     <hr className="text-green-700"></hr>
 
                     <div>
